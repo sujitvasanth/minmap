@@ -11,41 +11,80 @@
   </head>
   <body>
     <canvas id="canvas" width="600" height="300"></canvas>
-    <input type="text" id="hidden-input" style="opacity: 0; position: absolute; top: 0; left: 0;" />
-    <button id="delete-button" style="position: absolute; top: 10px; right: 10px; width: 6ch; display: none;">Del</button>
+    <textarea id="hidden-input" style="opacity: 0; position: absolute; top: 20px; left: 20px; font-size: 17px; font-family: Arial; border: none; outline: none; text-align: center;" rows="4" columns="25"></textarea>
+    <button id="delete-button" style="position: absolute; top: 10px; right: 10px; width: 6ch; display: none;">Del </button>
+   <input type="range" id="zoom-slider" min="0.01" max="2" step="0.01" value="1"; style="position: absolute; top: 20px; left: 20px; width: 600px">
     <script>
       const canvas = document.getElementById("canvas");
       const context = canvas.getContext("2d");
-      canvas.width = (screen.width)*0.92;
-      canvas.height = (screen.height)*0.8;          
+      canvas.width = (window.innerWidth)*0.98;
+      canvas.height = (window.innerHeight)*0.8;          
       const hiddenInput = document.getElementById('hidden-input');
       const deleteButton = document.getElementById("delete-button");
+      const zoomSlider = document.getElementById("zoom-slider");
+      zoomSlider.style.background = "transparent";
       var nodes = [];let selectedNodeIndex = -1; 
       let lastTouchTime = 0;let drag = 0;
-      const radiusX = 60;const radiusY = 28;
-      var torm=[];
+      const radiusX = 100;const radiusY = 45;
+      var torm=[];let scale=1.0;
+      var lastx=0;var lasty=0;
+      var prevDiff = -1;//for pinch zoom
+      var evCache = new Array(); //for pointer touch cache
+      var pan = false
   
       function drawNode(node) {
+        var lineHeight = 17
         context.beginPath();
+        var nodelabel = node.label
+        const generation = countIterations(nodes.indexOf(node), 0);
+        const generationScale = Math.pow(0.9, generation);        
         if (nodes.indexOf(node) === selectedNodeIndex){
-          context.lineWidth = 1;context.setLineDash([8, 11]);;context.beginPath();context.ellipse(node.x, node.y, radiusX+9, radiusY+10, 0, 0, 2 * Math.PI);
+          context.lineWidth = 1;context.setLineDash([8, 11]);;context.beginPath();
+          context.ellipse(node.x*scale, node.y*scale, radiusX* generationScale *scale+9, radiusY* generationScale*scale+10, 0, 0, 2 * Math.PI);
           context.stroke();context.beginPath();
           context.lineWidth = 1;context.setLineDash([]);
-          const deleteButtonX = node.x + radiusX + 10;
-          const deleteButtonY = node.y - radiusY - 20;
-          deleteButton.style.left = `${deleteButtonX}px`;
-          deleteButton.style.top = `${deleteButtonY}px`;
+          const deleteButtonX = node.x + radiusX;
+          const deleteButtonY = node.y - radiusY-10;
+          deleteButton.style.left = `${deleteButtonX*scale}px`;
+          deleteButton.style.top = `${deleteButtonY*scale}px`;
           deleteButton.style.display = "block";}
-        context.ellipse(node.x, node.y, radiusX, radiusY, 0, 0, 2 * Math.PI);
-        if (nodes.indexOf(node) === 0) {
+          context.ellipse(node.x * scale, node.y * scale, radiusX * scale * generationScale, radiusY * scale * generationScale, 0, 0, 2 * Math.PI);  
+          //context.ellipse(node.x*scale, node.y*scale, radiusX*scale, radiusY*scale, 0, 0, 2 * Math.PI);
+        if (nodes.indexOf(node) === 0) { //root node styling
           context.fillStyle = "rgb(160, 160, 160)";context.fill();
-          context.stroke();context.font = "16px Arial";context.fillStyle = "black";
-          context.textAlign = "center";context.fillText(node.label, node.x, node.y + 5);
-        } else {
+          context.stroke();context.font = `${20*scale}px Arial`;;
+          lineHeight = 20;
+        } else { //other node styling
           context.fillStyle = "white";context.fill();
-          context.stroke();context.font = "16px Arial";context.fillStyle = "black";
-          context.textAlign = "center";context.fillText(node.label, node.x, node.y + 5);};}
-        
+          context.stroke();context.font = `${17*scale* generationScale}px Arial`;
+          };
+        context.textAlign = "center";context.fillStyle = "black";
+        const lines = nodelabel.split("\n");
+        const y = (node.y - (lineHeight * (lines.length-1.5)) / 2)*scale;
+        lines.forEach((line, i) => {context.fillText(line, node.x*scale, y + i * lineHeight*scale);});
+        if (nodes.indexOf(node) === selectedNodeIndex){        
+          const cursorPos = hiddenInput.selectionStart;
+          const labelBeforeCursor = nodes[selectedNodeIndex].label.slice(0, cursorPos);           
+          const linesBeforeCursor = labelBeforeCursor.split("\n");
+          const cursorline = linesBeforeCursor.length-1;
+          const lineOfCursor = linesBeforeCursor[cursorline]
+          const totallines = lines.length-1
+          const cursorY = (node.y + (lineHeight *( ((totallines-1) / 2)-(totallines-cursorline)) ) )* scale;
+          //const cursorY = (node.y + (lineHeight * (cursorline-1) / 2)) * scale;
+          const wholeLabelWidth = context.measureText(lines[cursorline]).width;
+          const labelBeforeCursorWidth = context.measureText(lineOfCursor).width;
+          const cursorX = (node.x)* scale +labelBeforeCursorWidth - wholeLabelWidth/2;
+          context.beginPath();
+          context.moveTo(cursorX, cursorY);
+          context.lineTo(cursorX, cursorY + lineHeight*scale* generationScale);
+          context.stroke();}
+          }
+
+      function countIterations(index, iteration) {
+        if (index === 0) return iteration;
+        const parentIndex = nodes.findIndex((node) => node.children.includes(index));
+        return countIterations(parentIndex, iteration + 1);}
+          
       function addNode(x, y) {
         const node = { x, y, label: "", children: [] };
         if (selectedNodeIndex !== -1) {nodes[selectedNodeIndex].children.push(nodes.length);}
@@ -54,63 +93,81 @@
         hiddenInput.value = "";redraw();}
 
       function redraw() {
-        hiddenInput.focus();
         context.clearRect(0, 0, canvas.width, canvas.height);
         if (selectedNodeIndex === -1) {deleteButton.style.display = "none";return;}
         nodes.forEach((node, index) => {
           node.children.forEach((childIndex) => {
             const child = nodes[childIndex];
-            context.beginPath();
-            context.moveTo(node.x, node.y);
-            context.lineTo(child.x, child.y);
+            context.beginPath(); //draw the connector
+            context.moveTo(node.x*scale, node.y*scale);
+            context.lineTo(child.x*scale, child.y*scale);
             context.stroke();
           });
-          drawNode(node);}
-        );
-      }
+        drawNode(node);})}; //draw the node}
 
       function handlePointerDown(event) {
+        evCache.push(event);
+        for (var i = 0; i < evCache.length; i++) {
+          if (event.pointerId === evCache[i].pointerId) {
+            evCache[i] = event;}}
         const rect = canvas.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
+        const x = (event.clientX - rect.left)/scale;
+        const y = (event.clientY - rect.top)/scale;
         const node = nodes.find(
           (node) =>
             x >= node.x - radiusX &&
             x <= node.x + radiusX &&
             y >= node.y - radiusY &&
-            y <= node.y + radiusY);        
-        hiddenInput.focus();         
+            y <= node.y + radiusY);                
       	event.preventDefault();
         const currentTime = new Date().getTime();
         const tapLength = currentTime - lastTouchTime;
         lastTouchTime = currentTime;
-        if (tapLength < 500 && tapLength > 100) {
+        if (tapLength < 500 && tapLength > 100) {//double click event
+          hiddenInput.focus(); 
           if (node) {
             var ev = document.createEvent('HTMLEvents');
           } else {
             addNode(x, y);redraw()}
         } else {
           if (node) {
+            pan=false
             selectedNodeIndex = nodes.indexOf(node);   
-            hiddenInput.value=node.label
-            redraw();drag=1}
-          }
+            hiddenInput.value=node.label;
+            redraw();drag=1
+          } else {
+            pan=true;
+            drag=1;
+            }}
+        lastx=x;lasty=y;
       }
 
       function handlePointerMove(event) {
-        hiddenInput.focus();
         event.preventDefault();
+        for (var i = 0; i < evCache.length; i++) {
+          if (event.pointerId === evCache[i].pointerId) {
+            evCache[i] = event;}
+            }
+        if (evCache.length > 1)  {
+          var curDiff = Math.sqrt(Math.pow(evCache[1].clientX - evCache[0].clientX, 2) + Math.pow(evCache[1].clientY - evCache[0].clientY, 2));
+          if (prevDiff > 0) {scale += 0.01*(curDiff-prevDiff);};
+          prevDiff = curDiff;
+          zoomSlider.value = scale;
+          }
+        event=evCache[0]
         if (drag) {
+          if (selectedNodeIndex == -1) {return;}
           const rect = canvas.getBoundingClientRect();
-          const x = event.clientX - rect.left;
-          const y = event.clientY - rect.top;
-          const dx = x - nodes[selectedNodeIndex].x;
-          const dy = y - nodes[selectedNodeIndex].y;
-          moveNode(selectedNodeIndex, dx, dy);
-          redraw();
-        } else {
-          redraw();}
-      }
+          const x = (event.clientX - rect.left)/scale;
+          const y = (event.clientY - rect.top)/scale;
+          const dx = x - lastx;
+          const dy = y - lasty;
+          if (pan ==false) {
+          moveNode(selectedNodeIndex , dx, dy);}
+          else {moveNode(0 , dx, dy);}
+          lastx=x;lasty=y;}
+        redraw();
+        }
 
       function moveNode(index, dx, dy) {
         nodes[index].x += dx;
@@ -146,15 +203,34 @@
         nodes[index].children.forEach((childIndex) => {
           torm.push(childIndex);
           deleteSubtree(childIndex);});}
-      function handlePointerUp(event) {drag=0;hiddenInput.focus();event.preventDefault();}
-      function handleKeys(event) {if (selectedNodeIndex !== -1) {nodes[selectedNodeIndex].label = hiddenInput.value;redraw();}}
           
+      function handlePointerUp(event) {
+        event.preventDefault();
+        pan=0;
+        if (evCache.length < 2) {prevDiff = -1;drag=0;};
+        for (var i = 0; i < evCache.length; i++) {
+          if (evCache[i].pointerId == event.pointerId) {
+            evCache.splice(i, 1);}
+            }
+        }
+      function handleKeys(event) {if (selectedNodeIndex !== -1) {nodes[selectedNodeIndex].label = hiddenInput.value;redraw();}}
+         
       canvas.addEventListener("pointerdown", handlePointerDown);
       canvas.addEventListener("pointermove", handlePointerMove);
       canvas.addEventListener("pointerup", handlePointerUp);
       canvas.addEventListener("mouseout", handlePointerUp); 
-      hiddenInput.addEventListener('input', handleKeys);
-      deleteButton.addEventListener("click", deleteSelectedNode);           
+      hiddenInput.addEventListener('keydown', handleKeys);
+      hiddenInput.addEventListener("keyup", handleKeys);
+      deleteButton.addEventListener("click", deleteSelectedNode);
+      zoomSlider.addEventListener("input", function() {scale = parseFloat(this.value);redraw();}); 
+      canvas.addEventListener('wheel', function(event) {
+           event.preventDefault();
+           const delta = Math.sign(event.deltaY);
+           if (delta === 1) {scale += 0.05;}
+           else if (delta === -1) {scale -= 0.05;}
+           zoomSlider.value = scale;
+           redraw();});
+        
     </script>
   </body>
 </html>
