@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Mind Map</title>
+    <style>
+      canvas {
+        border: 1px solid black;
+        touch-action: none;
+      }
+    </style>
+    <script src="https://unpkg.com/dropbox@4.0.30/dist/Dropbox-sdk.min.js"></script>
+  </head>
+  <body>
+   <a id="dropper" href="/home/sujit/Downloads/mindmap.minmap" class="dropbox-saver"></a>
+   <canvas id="canvas" width="600" height="300"></canvas>
+   <textarea id="hidden-input" style="opacity: 0; position: absolute; top: 20px; left: 20px; font-size: 17px; font-family: Arial; border: none; outline: none; text-align: center;" rows="4" columns="25"></textarea>
+   <button id="delete-button" style="position: absolute; top: 10px; right: 10px; width: 4ch; font-size: 17px; display: none;">Del </button>
+   <input type="range" id="zoom-slider" min="0.01" max="2" step="0.01" value="1"; style="position: absolute; top: 20px; left: 20px; width: 600px">
+   <button id="authenticate-button" style="position: absolute; top: 10px; right: 170px; width: 10ch; font-size: 17px;">Authenticate</button>
+   <button id="save-button" style="position: absolute; top: 10px; right: 90px; width: 6ch; font-size: 17px;">Save</button>
+   <button id="load-button" style="position: absolute; top: 10px; right: 10px; width: 6ch; font-size: 17px;">Load</button>
+
+    <script>
+      const canvas = document.getElementById("canvas");
+      const context = canvas.getContext("2d");
+      canvas.width = (window.innerWidth)*0.98;
+      canvas.height = (window.innerHeight)*0.8;          
+      const hiddenInput = document.getElementById('hidden-input');
+      const deleteButton = document.getElementById("delete-button");
+      const zoomSlider = document.getElementById("zoom-slider");
+      zoomSlider.style.background = "transparent";
+      const fileInput = document.getElementById("file-input");
+      const saveButton = document.getElementById("save-button");
+      const loadButton = document.getElementById("load-button");
+      const dropper = document.getElementById("dropper");
+      const authenticateButton = document.getElementById("authenticate-button");
+      
+      function getAccessTokenFromUrl() {
+        const urlParams = new URLSearchParams(window.location.hash.substring(1));
+        return urlParams.get("access_token");
+      }
+      
+      const accessToken = getAccessTokenFromUrl();
+      if (accessToken) {
+        authenticateButton.style.display = "none";
+      } else {
+        saveButton.disabled = true;
+        loadButton.disabled = true;
+      }
+      
+      var nodes = [];let selectedNodeIndex = -1; 
+      let lastTouchTime = 0;let drag = 0;
+      const radiusX = 100;const radiusY = 45;
+      var torm=[];let scale=1.0;
+      var lastx=0;var lasty=0;
+      var prevDiff = -1;//for pinch zoom
+      var evCache = new Array(); //for pointer touch cache
+      var pan = false
+  
+      saveButton.addEventListener("click", function() {
+        const fileName = prompt("Please enter a filename for your Mind Map:", "mindmap");
+        if (fileName != null) {
+          const data = JSON.stringify(nodes);
+          const blob = new Blob([data], { type: "application/json" });
+          const fileReader = new FileReader();
+          fileReader.onloadend = function() {
+            const dropbox = new Dropbox.Dropbox({ accessToken: accessToken });
+            dropbox.filesUpload({ path: '/' + fileName + '.minmap', contents: fileReader.result, mode: 'overwrite' })
+              .then(function(response) {
+                alert('File saved to Dropbox');
+              })
+              .catch(function(error) {
+                alert('Error saving file to Dropbox: ' + error.message);
+              });
+          };
+          fileReader.readAsArrayBuffer(blob);
+        }
+      });
+
+      loadButton.addEventListener("click", function() {
+        const fileName = prompt("Please enter the filename of the Mind Map you want to load:", "mindmap");
+        if (fileName != null) {
+          const dropbox = new Dropbox.Dropbox({ accessToken: accessToken });
+          dropbox.filesDownload({ path: '/' + fileName + '.minmap' })
+            .then(function(response) {
+              const blob = new Blob([response.fileBlob], { type: "application/json" });
+              const reader = new FileReader();
+              reader.onload = function(event) {
+                const data = JSON.parse(event.target.result);
+                nodes = data;
+                selectedNodeIndex = 0;
+                redraw();
+              };
+              reader.readAsText(blob);
+            })
+            .catch(function(error) {
+              alert('Error loading file from Dropbox: ' + error.message);
+            });
+        }
+      });
+
+      authenticateButton.addEventListener("click", function() {
+        // Replace 'YOUR_APP_KEY' with your Dropbox app key
+        const appKey = 'uyt17co0totx5rx';
+        const redirectUri = 'http://localhost/minmap0.4.html';
+        let dbx = new Dropbox.Dropbox({ clientId: appKey });
+        window.location.href = dbx.getAuthenticationUrl(redirectUri);
+      });
+
+  
+      function drawNode(node) {
+        var lineHeight = 17
+        context.beginPath();
+        var nodelabel = node.label
+        const generation = countIterations(nodes.indexOf(node), 0);
+        const generationScale = Math.pow(0.9, generation);        
+        if (nodes.indexOf(node) === selectedNodeIndex){
+          context.lineWidth = 1;context.setLineDash([8, 11]);;context.beginPath();
+          context.ellipse(node.x*scale, node.y*scale, radiusX* generationScale *scale+9, radiusY* generationScale*scale+10, 0, 0, 2 * Math.PI);
+          context.stroke();context.beginPath();
+          context.lineWidth = 1;context.setLineDash([]);
+          const deleteButtonX = node.x + radiusX;
+          const deleteButtonY = node.y - radiusY-10;
+          deleteButton.style.left = `${deleteButtonX*scale}px`;
+          deleteButton.style.top = `${deleteButtonY*scale}px`;
+          deleteButton.style.display = "block";}
+          context.ellipse(node.x * scale, node.y * scale, radiusX * scale * generationScale, radiusY * scale * generationScale, 0, 0, 2 * Math.PI);  
+          //context.ellipse(node.x*scale, node.y*scale, radiusX*scale, radiusY*scale, 0, 0, 2 * Math.PI);
+        if (nodes.indexOf(node) === 0) { //root node styling
+          context.fillStyle = "rgb(160, 160, 160)";context.fill();
+          context.stroke();context.font = `${20*scale}px Arial`;;
+          lineHeight = 20;
+        } else { //other node styling
+          context.fillStyle = "white";context.fill();
+          context.stroke();context.font = `${17*scale* generationScale}px Arial`;
+          };
+        context.textAlign = "center";context.fillStyle = "black";
+        const lines = nodelabel.split("\n");
+        const y = (node.y - (lineHeight * (lines.length-1.5)) / 2)*scale;
+        lines.forEach((line, i) => {context.fillText(line, node.x*scale, y + i * lineHeight*scale);});
+        if (nodes.indexOf(node) === selectedNodeIndex){        
+          const cursorPos = hiddenInput.selectionStart;
+          const labelBeforeCursor = nodes[selectedNodeIndex].label.slice(0, cursorPos);           
+          const linesBeforeCursor = labelBeforeCursor.split("\n");
+          const cursorline = linesBeforeCursor.length-1;
+          const lineOfCursor = linesBeforeCursor[cursorline]
+          const totallines = lines.length-1
+          const cursorY = (node.y + (lineHeight *( ((totallines-1) / 2)-(totallines-cursorline)) ) )* scale;
+          //const cursorY = (node.y + (lineHeight * (cursorline-1) / 2)) * scale;
+          const wholeLabelWidth = context.measureText(lines[cursorline]).width;
+          const labelBeforeCursorWidth = context.measureText(lineOfCursor).width;
+          const cursorX = (node.x)* scale +labelBeforeCursorWidth - wholeLabelWidth/2;
+          context.beginPath();
+          context.moveTo(cursorX, cursorY);
+          context.lineTo(cursorX, cursorY + lineHeight*scale* generationScale);
+          context.stroke();}
+          }
+
+      function countIterations(index, iteration) {
+        if (index === 0) return iteration;
+        const parentIndex = nodes.findIndex((node) => node.children.includes(index));
+        return countIterations(parentIndex, iteration + 1);}
+          
+      function addNode(x, y) {
+        const node = { x, y, label: "", children: [] };
+        if (selectedNodeIndex !== -1) {nodes[selectedNodeIndex].children.push(nodes.length);}
+        nodes.push(node);
+        selectedNodeIndex = nodes.length - 1; // set the selectedNodeIndex to the index of the new node
+        hiddenInput.value = "";redraw();}
+
+      function redraw() {
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        if (selectedNodeIndex === -1) {deleteButton.style.display = "none";return;}
+        nodes.forEach((node, index) => {
+          node.children.forEach((childIndex) => {
+            const child = nodes[childIndex];
+            context.beginPath(); //draw the connector
+            context.moveTo(node.x*scale, node.y*scale);
+            context.lineTo(child.x*scale, child.y*scale);
+            context.stroke();
+          });
+        drawNode(node);})}; //draw the node}
+
+      function handlePointerDown(event) {
+        evCache.push(event);
+        for (var i = 0; i < evCache.length; i++) {
+          if (event.pointerId === evCache[i].pointerId) {
+            evCache[i] = event;}}
+        const rect = canvas.getBoundingClientRect();
+        const x = (event.clientX - rect.left)/scale;
+        const y = (event.clientY - rect.top)/scale;
+        const node = nodes.find(
+          (node) =>
+            x >= node.x - radiusX &&
+            x <= node.x + radiusX &&
+            y >= node.y - radiusY &&
+            y <= node.y + radiusY);                
+      	event.preventDefault();
+        const currentTime = new Date().getTime();
+        const tapLength = currentTime - lastTouchTime;
+        lastTouchTime = currentTime;
+        if (tapLength < 500 && tapLength > 100) {//double click event
+          hiddenInput.focus(); 
+          if (node) {
+            var ev = document.createEvent('HTMLEvents');
+          } else {
+            addNode(x, y);redraw()}
+        } else {
+          if (node) {
+            pan=false
+            selectedNodeIndex = nodes.indexOf(node);   
+            hiddenInput.value=node.label;
+            redraw();drag=1
+          } else {
+            pan=true;
+            drag=1;
+            }}
+        lastx=x;lasty=y;
+      }
+
+      function handlePointerMove(event) {
+        event.preventDefault();
+        for (var i = 0; i < evCache.length; i++) {
+          if (event.pointerId === evCache[i].pointerId) {
+            evCache[i] = event;}
+            }
+        if (evCache.length > 1)  {
+          var curDiff = Math.sqrt(Math.pow(evCache[1].clientX - evCache[0].clientX, 2) + Math.pow(evCache[1].clientY - evCache[0].clientY, 2));
+          if (prevDiff > 0) {scale += 0.01*(curDiff-prevDiff);};
+          prevDiff = curDiff;
+          zoomSlider.value = scale;
+          }
+        event=evCache[0]
+        if (drag) {
+          if (selectedNodeIndex == -1) {return;}
+          const rect = canvas.getBoundingClientRect();
+          const x = (event.clientX - rect.left)/scale;
+          const y = (event.clientY - rect.top)/scale;
+          const dx = x - lastx;
+          const dy = y - lasty;
+          if (pan ==false) {
+          moveNode(selectedNodeIndex , dx, dy);
+          hiddenInput.blur();}
+          else {moveNode(0 , dx, dy);}
+          lastx=x;lasty=y;}
+        redraw();
+        }
+
+      function moveNode(index, dx, dy) {
+        nodes[index].x += dx;
+        nodes[index].y += dy;
+        nodes[index].children.forEach((childIndex) => {
+          moveNode(childIndex, dx, dy);
+        });}
+      
+      function deleteSelectedNode(event) {
+        if (selectedNodeIndex === 0) {
+          selectedNodeIndex = -1;
+          nodes.splice(0);
+        } else { 
+          torm=[];        
+          const prentNodeIndex = nodes.findIndex((prent) => prent.children.includes(selectedNodeIndex));          
+          const nodeChildIndex = nodes[prentNodeIndex].children.indexOf(selectedNodeIndex);
+          console.log('before nodes:', nodes);
+          deleteSubtree(selectedNodeIndex); //get array of torm
+          torm.push(selectedNodeIndex)
+          torm.sort((a, b) => b - a);
+          for (var i = 0; i < torm.length; i++) {
+                nodes.splice(torm[i], 1);
+                nodes.forEach((node) => {
+                  for (var j = 0; j < node.children.length; j++) {
+                    if (node.children[j] > torm[i]) {
+                      node.children[j]--;}}
+                });}
+          nodes[prentNodeIndex].children.splice(nodeChildIndex, 1);
+          selectedNodeIndex = prentNodeIndex;}           
+          redraw();}
+
+      function deleteSubtree(index) {
+        nodes[index].children.forEach((childIndex) => {
+          torm.push(childIndex);
+          deleteSubtree(childIndex);});}
+          
+      function handlePointerUp(event) {
+        event.preventDefault();
+        pan=0;
+        if (evCache.length < 2) {prevDiff = -1;drag=0;};
+        for (var i = 0; i < evCache.length; i++) {
+          if (evCache[i].pointerId == event.pointerId) {
+            evCache.splice(i, 1);}
+            }
+        }
+      function handleKeys(event) {if (selectedNodeIndex !== -1) {nodes[selectedNodeIndex].label = hiddenInput.value;redraw();}}   
+      canvas.addEventListener("pointerdown", handlePointerDown);
+      canvas.addEventListener("pointermove", handlePointerMove);
+      canvas.addEventListener("pointerup", handlePointerUp);
+      canvas.addEventListener("mouseout", handlePointerUp); 
+      hiddenInput.addEventListener('keydown', handleKeys);
+      hiddenInput.addEventListener("keyup", handleKeys);
+      deleteButton.addEventListener("click", deleteSelectedNode);
+      zoomSlider.addEventListener("input", function() {scale = parseFloat(this.value);redraw();}); 
+      canvas.addEventListener('wheel', function(event) {
+           event.preventDefault();
+           const delta = Math.sign(event.deltaY);
+           if (delta === 1) {scale += 0.05;}
+           else if (delta === -1) {scale -= 0.05;}
+           zoomSlider.value = scale;
+           redraw();});
+        
+    </script>
+  </body>
+</html>
