@@ -63,7 +63,7 @@
           const fileReader = new FileReader();
           fileReader.onloadend = function() {
             const dropbox = new Dropbox.Dropbox({ accessToken: accessToken });
-            dropbox.filesUpload({ path: '/' + fileName + '.minmap', contents: fileReader.result, mode: 'overwrite' })
+            dropbox.filesUpload({ path: '/Minmap/' + fileName + '.minmap', contents: fileReader.result, mode: 'overwrite' })
               .then(function(response) {
                 alert('File saved to Dropbox');
               })
@@ -79,7 +79,7 @@
         const fileName = prompt("Please enter the filename of the Mind Map you want to load:", "mindmap");
         if (fileName != null) {
           const dropbox = new Dropbox.Dropbox({ accessToken: accessToken });
-          dropbox.filesDownload({ path: '/' + fileName + '.minmap' })
+          dropbox.filesDownload({ path: '/Minmap/' + fileName + '.minmap' })
             .then(function(response) {
               const blob = new Blob([response.fileBlob], { type: "application/json" });
               const reader = new FileReader();
@@ -100,7 +100,7 @@
       authenticateButton.addEventListener("click", function() {
         // Replace 'YOUR_APP_KEY' with your Dropbox app key
         const appKey = 'uyt17co0totx5rx';
-        const redirectUri = 'https://minmap-sujitvasanth.vercel.app';
+        const redirectUri = 'https://minmap.vercel.app';
         let dbx = new Dropbox.Dropbox({ clientId: appKey });
         window.location.href = dbx.getAuthenticationUrl(redirectUri);
       });
