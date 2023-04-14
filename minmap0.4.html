@@ -75,11 +75,51 @@
         }
       });
 
-      loadButton.addEventListener("click", function() {
-        const fileName = prompt("Please enter the filename of the Mind Map you want to load:", "mindmap");
-        if (fileName != null) {
-          const dropbox = new Dropbox.Dropbox({ accessToken: accessToken });
-          dropbox.filesDownload({ path: '/Minmap/' + fileName + '.minmap' })
+loadButton.addEventListener('click', function() {
+  const dropbox = new Dropbox.Dropbox({ accessToken: accessToken });
+  dropbox.filesListFolder({path: '/Minmap'})
+    .then(function(response) {
+      const minmapFiles = response.entries.filter(function(file) {
+        return file.name.endsWith('.minmap');
+      });
+
+      const popup = document.createElement('div');
+      popup.style.position = 'absolute';
+      popup.style.zIndex = '1';
+      popup.style.backgroundColor = '#007bee';
+      popup.style.border = '1px solid #ddd';
+      popup.style.borderRadius = '5px';
+      popup.style.padding = '5px';
+      popup.style.width = '50%';
+      popup.style.height = '25%';
+      popup.style.left = '50%';
+      popup.style.top = '50%';
+      popup.style.transform = 'translate(-50%, -50%)';
+
+      const popupList = document.createElement('select');
+      popupList.style.padding = '15px';
+      popupList.style.width = '100%';
+      popupList.style.backgroundColor = '#fff';
+      popupList.style.color = '#000';
+      popupList.style.fontSize = '18px';
+      popupList.style.border = '1px solid #ccc';
+      popupList.size = 5;
+
+      minmapFiles.forEach(function(file) {
+        const option = document.createElement('option');
+        option.value = file.path_lower;
+        option.textContent = file.name;
+        popupList.appendChild(option);
+      });
+
+      const selectButton = document.createElement('button');
+      selectButton.textContent = 'Open';
+      selectButton.style.marginRight = '10px';
+      selectButton.style.fontSize = '18px';
+      selectButton.addEventListener('click', function() {
+        const selected = popupList.querySelector('option:checked');
+        if (selected) {
+          dropbox.filesDownload({ path: selected.value })
             .then(function(response) {
               const blob = new Blob([response.fileBlob], { type: "application/json" });
               const reader = new FileReader();
@@ -94,13 +134,37 @@
             .catch(function(error) {
               alert('Error loading file from Dropbox: ' + error.message);
             });
+          document.body.removeChild(popup);
+        } else {
+          alert('Please select a file.');
         }
       });
+
+      const cancelButton = document.createElement('button');
+      cancelButton.textContent = 'Cancel';
+      selectButton.style.fontSize = '18px';
+      cancelButton.addEventListener('click', function() {
+        document.body.removeChild(popup);
+      });
+
+      popup.appendChild(popupList);
+      popup.appendChild(selectButton);
+      popup.appendChild(cancelButton);
+      document.body.appendChild(popup);
+
+    })
+    .catch(function(error) {
+      alert('Error listing files in Dropbox: ' + error.message);
+    });
+});
+
+
 
       authenticateButton.addEventListener("click", function() {
         // Replace 'YOUR_APP_KEY' with your Dropbox app key
         const appKey = 'uyt17co0totx5rx';
-        const redirectUri = 'https://minmap.vercel.app';
+        var redirectUri = 'https://minmap.vercel.app';
+        if (window.location.protocol === 'file:') {redirectUri = 'http://localhost/minmap0.4.html';}
         let dbx = new Dropbox.Dropbox({ clientId: appKey });
         window.location.href = dbx.getAuthenticationUrl(redirectUri);
       });
