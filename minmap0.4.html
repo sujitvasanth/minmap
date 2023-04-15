@@ -32,23 +32,14 @@
       const saveButton = document.getElementById("save-button");
       const loadButton = document.getElementById("load-button");
       const authenticateButton = document.getElementById("authenticate-button");
-      
-      function getAccessTokenFromUrl() {
-        const urlParams = new URLSearchParams(window.location.hash.substring(1));
-        return urlParams.get("access_token");
-      }
-      
-      const accessToken = getAccessTokenFromUrl();
-      if (accessToken) {
-        authenticateButton.style.display = "none";
-      } else {
-        saveButton.disabled = true;
-        loadButton.disabled = true;
-      }
-      
+      const urlParams = new URLSearchParams(window.location.hash.substring(1));
+      const accessToken = urlParams.get("access_token");
+      if (accessToken) {authenticateButton.style.display = "none";}
+      else {saveButton.disabled = true;loadButton.disabled = true;}
       var nodes = [];let selectedNodeIndex = -1; 
       let lastTouchTime = 0;let drag = 0;
-      const radiusX = 100;const radiusY = 45;
+      const radiusX = 80;const radiusY = 30;
+      const cornerRadius = 20;
       var torm=[];let scale=1.0;
       var lastx=0;var lasty=0;
       var prevDiff = -1;//for pinch zoom
@@ -64,16 +55,9 @@
           fileReader.onloadend = function() {
             const dropbox = new Dropbox.Dropbox({ accessToken: accessToken });
             dropbox.filesUpload({ path: '/Minmap/' + fileName + '.minmap', contents: fileReader.result, mode: 'overwrite' })
-              .then(function(response) {
-                alert('File saved to Dropbox');
-              })
-              .catch(function(error) {
-                alert('Error saving file to Dropbox: ' + error.message);
-              });
-          };
-          fileReader.readAsArrayBuffer(blob);
-        }
-      });
+              .then(function(response) {alert('File saved to Dropbox');})
+              .catch(function(error) {alert('Error saving file to Dropbox: ' + error.message);});};
+          fileReader.readAsArrayBuffer(blob);}});
 
 loadButton.addEventListener('click', function() {
   const dropbox = new Dropbox.Dropbox({ accessToken: accessToken });
@@ -157,9 +141,6 @@ loadButton.addEventListener('click', function() {
       alert('Error listing files in Dropbox: ' + error.message);
     });
 });
-
-
-
       authenticateButton.addEventListener("click", function() {
         // Replace 'YOUR_APP_KEY' with your Dropbox app key
         const appKey = 'uyt17co0totx5rx';
@@ -170,53 +151,81 @@ loadButton.addEventListener('click', function() {
       });
 
   
-      function drawNode(node) {
-        var lineHeight = 17
-        context.beginPath();
-        var nodelabel = node.label
-        const generation = countIterations(nodes.indexOf(node), 0);
-        const generationScale = Math.pow(0.9, generation);        
-        if (nodes.indexOf(node) === selectedNodeIndex){
-          context.lineWidth = 1;context.setLineDash([8, 11]);;context.beginPath();
-          context.ellipse(node.x*scale, node.y*scale, radiusX* generationScale *scale+9, radiusY* generationScale*scale+10, 0, 0, 2 * Math.PI);
-          context.stroke();context.beginPath();
-          context.lineWidth = 1;context.setLineDash([]);
-          const deleteButtonX = node.x + radiusX;
-          const deleteButtonY = node.y - radiusY-10;
-          deleteButton.style.left = `${deleteButtonX*scale}px`;
-          deleteButton.style.top = `${deleteButtonY*scale}px`;
-          deleteButton.style.display = "block";}
-          context.ellipse(node.x * scale, node.y * scale, radiusX * scale * generationScale, radiusY * scale * generationScale, 0, 0, 2 * Math.PI);  
-          //context.ellipse(node.x*scale, node.y*scale, radiusX*scale, radiusY*scale, 0, 0, 2 * Math.PI);
-        if (nodes.indexOf(node) === 0) { //root node styling
-          context.fillStyle = "rgb(160, 160, 160)";context.fill();
-          context.stroke();context.font = `${20*scale}px Arial`;;
-          lineHeight = 20;
-        } else { //other node styling
-          context.fillStyle = "white";context.fill();
-          context.stroke();context.font = `${17*scale* generationScale}px Arial`;
-          };
-        context.textAlign = "center";context.fillStyle = "black";
-        const lines = nodelabel.split("\n");
-        const y = (node.y - (lineHeight * (lines.length-1.5)) / 2)*scale;
-        lines.forEach((line, i) => {context.fillText(line, node.x*scale, y + i * lineHeight*scale);});
-        if (nodes.indexOf(node) === selectedNodeIndex){        
-          const cursorPos = hiddenInput.selectionStart;
-          const labelBeforeCursor = nodes[selectedNodeIndex].label.slice(0, cursorPos);           
-          const linesBeforeCursor = labelBeforeCursor.split("\n");
-          const cursorline = linesBeforeCursor.length-1;
-          const lineOfCursor = linesBeforeCursor[cursorline]
-          const totallines = lines.length-1
-          const cursorY = (node.y + (lineHeight *( ((totallines-1) / 2)-(totallines-cursorline)) ) )* scale;
-          //const cursorY = (node.y + (lineHeight * (cursorline-1) / 2)) * scale;
-          const wholeLabelWidth = context.measureText(lines[cursorline]).width;
-          const labelBeforeCursorWidth = context.measureText(lineOfCursor).width;
-          const cursorX = (node.x)* scale +labelBeforeCursorWidth - wholeLabelWidth/2;
-          context.beginPath();
-          context.moveTo(cursorX, cursorY);
-          context.lineTo(cursorX, cursorY + lineHeight*scale* generationScale);
-          context.stroke();}
-          }
+function drawNode(node) {
+  var lineHeight = 17
+  context.beginPath();
+  var nodelabel = node.label
+  const generation = countIterations(nodes.indexOf(node), 0);
+  const generationScale = Math.pow(0.9, generation);        
+  const rectWidth = radiusX * 2 * scale * generationScale;
+  const rectHeight = radiusY * 2 * scale * generationScale;
+  
+  function drawRoundedRect(x, y, width, height) {
+    context.beginPath();context.moveTo(x + cornerRadius, y);
+    context.lineTo(x + width - cornerRadius, y);
+    context.quadraticCurveTo(x + width, y, x + width, y + cornerRadius);
+    context.lineTo(x + width, y + height - cornerRadius);
+    context.quadraticCurveTo(x + width, y + height, x + width - cornerRadius, y + height);
+    context.lineTo(x + cornerRadius, y + height);
+    context.quadraticCurveTo(x, y + height, x, y + height - cornerRadius);
+    context.lineTo(x, y + cornerRadius); context.quadraticCurveTo(x, y, x + cornerRadius, y);
+    context.closePath();}  
+  
+  if (nodes.indexOf(node) === selectedNodeIndex){
+    context.lineWidth = 1;
+    context.setLineDash([8, 11]);
+    context.beginPath();
+    drawRoundedRect(node.x * scale - rectWidth / 2 - 4.5, node.y * scale - rectHeight / 2 - 5, rectWidth + 9, rectHeight + 10);
+    context.stroke();
+    context.beginPath();
+    context.lineWidth = 1;
+    context.setLineDash([]);
+    const deleteButtonX = node.x + radiusX;
+    const deleteButtonY = node.y - radiusY-10;
+    deleteButton.style.left = `${deleteButtonX*scale}px`;
+    deleteButton.style.top = `${deleteButtonY*scale}px`;
+    deleteButton.style.display = "block";
+  }
+  
+ drawRoundedRect(node.x * scale - rectWidth / 2, node.y * scale - rectHeight / 2, rectWidth, rectHeight);
+
+  
+  if (nodes.indexOf(node) === 0) { //root node styling
+    context.fillStyle = "rgb(160, 160, 160)";
+    context.fill();
+    context.stroke();
+    context.font = `${20*scale}px Arial`;
+    lineHeight = 20;
+  } else { //other node styling
+    context.fillStyle = "white";
+    context.fill();
+    context.stroke();
+    context.font = `${17*scale* generationScale}px Arial`;
+  };
+  
+  context.textAlign = "center";
+  context.fillStyle = "black";
+  const lines = nodelabel.split("\n");
+  const y = (node.y - (lineHeight * (lines.length-1.5)) / 2)*scale;
+  lines.forEach((line, i) => {context.fillText(line, node.x*scale, y + i * lineHeight*scale);});
+  
+  if (nodes.indexOf(node) === selectedNodeIndex){        
+    const cursorPos = hiddenInput.selectionStart;
+    const labelBeforeCursor = nodes[selectedNodeIndex].label.slice(0, cursorPos);           
+    const linesBeforeCursor = labelBeforeCursor.split("\n");
+    const cursorline = linesBeforeCursor.length-1;
+    const lineOfCursor = linesBeforeCursor[cursorline]
+    const totallines = lines.length-1
+    const cursorY = (node.y + (lineHeight *( ((totallines-1) / 2)-(totallines-cursorline)) ) )* scale;
+    const wholeLabelWidth = context.measureText(lines[cursorline]).width;
+    const labelBeforeCursorWidth = context.measureText(lineOfCursor).width;
+    const cursorX = (node.x)* scale +labelBeforeCursorWidth - wholeLabelWidth/2;
+    context.beginPath();
+    context.moveTo(cursorX, cursorY);
+    context.lineTo(cursorX, cursorY + lineHeight*scale* generationScale);
+    context.stroke();
+  }
+}
 
       function countIterations(index, iteration) {
         if (index === 0) return iteration;
