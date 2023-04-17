@@ -161,14 +161,14 @@ function drawNode(node) {
   const rectHeight = radiusY * 2 * scale * generationScale;
   
   function drawRoundedRect(x, y, width, height) {
-    context.beginPath();context.moveTo(x + cornerRadius, y);
-    context.lineTo(x + width - cornerRadius, y);
-    context.quadraticCurveTo(x + width, y, x + width, y + cornerRadius);
-    context.lineTo(x + width, y + height - cornerRadius);
-    context.quadraticCurveTo(x + width, y + height, x + width - cornerRadius, y + height);
-    context.lineTo(x + cornerRadius, y + height);
-    context.quadraticCurveTo(x, y + height, x, y + height - cornerRadius);
-    context.lineTo(x, y + cornerRadius); context.quadraticCurveTo(x, y, x + cornerRadius, y);
+    context.beginPath();context.moveTo(x + cornerRadius*scale*generationScale, y);
+    context.lineTo(x + width - cornerRadius*scale*generationScale, y);
+    context.quadraticCurveTo(x + width, y, x + width, y + cornerRadius*scale*generationScale);
+    context.lineTo(x + width, y + height - cornerRadius*scale*generationScale);
+    context.quadraticCurveTo(x + width, y + height, x + width - cornerRadius*scale*generationScale, y + height);
+    context.lineTo(x + cornerRadius*scale*generationScale, y + height);
+    context.quadraticCurveTo(x, y + height, x, y + height - cornerRadius*scale*generationScale);
+    context.lineTo(x, y + cornerRadius*scale*generationScale); context.quadraticCurveTo(x, y, x + cornerRadius*scale*generationScale, y);
     context.closePath();}  
   
   if (nodes.indexOf(node) === selectedNodeIndex){
@@ -187,7 +187,22 @@ function drawNode(node) {
     deleteButton.style.display = "block";
   }
   
- drawRoundedRect(node.x * scale - rectWidth / 2, node.y * scale - rectHeight / 2, rectWidth, rectHeight);
+  const lines = nodelabel.split("\n");
+  let maxLabelWidth = 10;
+  if (nodes.indexOf(node) === 0) { //root node styling
+    context.font = `${20*scale}px Arial`;
+  } else { //other node styling
+    context.font = `${17*scale* generationScale}px Arial`;
+  };
+  for (let i = 0; i < lines.length; i++) {
+    const lineWidth = context.measureText(lines[i]).width;
+    if (lineWidth > maxLabelWidth) {maxLabelWidth = lineWidth;}}
+  maxLabelWidth += 20*scale
+ 
+
+  
+ const y2 = (node.y - (lineHeight*generationScale * (lines.length+1)) / 2)*scale;
+ drawRoundedRect(node.x * scale -  maxLabelWidth / 2, y2,  maxLabelWidth, (lines.length+1)*lineHeight*scale*generationScale);
 
   
   if (nodes.indexOf(node) === 0) { //root node styling
@@ -205,7 +220,6 @@ function drawNode(node) {
   
   context.textAlign = "center";
   context.fillStyle = "black";
-  const lines = nodelabel.split("\n");
   const y = (node.y - (lineHeight * (lines.length-1.5)) / 2)*scale;
   lines.forEach((line, i) => {context.fillText(line, node.x*scale, y + i * lineHeight*scale);});
   
