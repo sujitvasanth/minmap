@@ -23,7 +23,8 @@
       const canvas = document.getElementById("canvas");
       const context = canvas.getContext("2d");
       canvas.width = (window.innerWidth)*0.98;
-      canvas.height = (window.innerHeight)*0.98;          
+      canvas.height = (window.innerHeight)*0.98;  
+      canvas.style.backgroundColor = "#ebebf0";        
       const hiddenInput = document.getElementById('hidden-input');
       const deleteButton = document.getElementById("delete-button");
       const zoomSlider = document.getElementById("zoom-slider");
@@ -159,6 +160,7 @@ function drawNode(node) {
   const generationScale = Math.pow(0.9, generation);        
   const rectWidth = radiusX * 2 * scale * generationScale;
   const rectHeight = radiusY * 2 * scale * generationScale;
+  const colors = ["#e0b6c1","#bfe0ef","#c3e6cb",   "#ffe4c4",  "#ffdab9"];
   
   function drawRoundedRect(x, y, width, height) {
     context.beginPath();context.moveTo(x + cornerRadius*scale*generationScale, y);
@@ -171,11 +173,24 @@ function drawNode(node) {
     context.lineTo(x, y + cornerRadius*scale*generationScale); context.quadraticCurveTo(x, y, x + cornerRadius*scale*generationScale, y);
     context.closePath();}  
   
+    const lines = nodelabel.split("\n");
+    let maxLabelWidth = 10;
+    if (nodes.indexOf(node) === 0) { //root node styling
+      context.font = `${20*scale}px Arial`;
+    } else { //other node styling
+      context.font = `${17*scale* generationScale}px Arial`;
+    };
+    for (let i = 0; i < lines.length; i++) {
+      const lineWidth = context.measureText(lines[i]).width;
+      if (lineWidth > maxLabelWidth) {maxLabelWidth = lineWidth;}}
+    maxLabelWidth += 20*scale;
+    const y2 = (node.y - (lineHeight*generationScale * (lines.length+1)) / 2)*scale;
+  
   if (nodes.indexOf(node) === selectedNodeIndex){
     context.lineWidth = 1;
     context.setLineDash([8, 11]);
     context.beginPath();
-    drawRoundedRect(node.x * scale - rectWidth / 2 - 5, node.y * scale - rectHeight / 2 - 5, (rectWidth + 10), (rectHeight + 10));
+    drawRoundedRect(node.x * scale - maxLabelWidth / 2 - 5, y2 - 5, (maxLabelWidth + 10), ((lines.length+1)*lineHeight*scale*generationScale) + 10);
     context.stroke();
     context.beginPath();
     context.lineWidth = 1;
@@ -187,35 +202,17 @@ function drawNode(node) {
     deleteButton.style.display = "block";
   }
   
-  const lines = nodelabel.split("\n");
-  let maxLabelWidth = 10;
-  if (nodes.indexOf(node) === 0) { //root node styling
-    context.font = `${20*scale}px Arial`;
-  } else { //other node styling
-    context.font = `${17*scale* generationScale}px Arial`;
-  };
-  for (let i = 0; i < lines.length; i++) {
-    const lineWidth = context.measureText(lines[i]).width;
-    if (lineWidth > maxLabelWidth) {maxLabelWidth = lineWidth;}}
-  maxLabelWidth += 20*scale
- 
-
-  
- const y2 = (node.y - (lineHeight*generationScale * (lines.length+1)) / 2)*scale;
  drawRoundedRect(node.x * scale -  maxLabelWidth / 2, y2,  maxLabelWidth, (lines.length+1)*lineHeight*scale*generationScale);
+ context.fillStyle = colors[generation]
+ context.fill();
+ context.stroke();
 
-  
   if (nodes.indexOf(node) === 0) { //root node styling
-    context.fillStyle = "rgb(160, 160, 160)";
-    context.fill();
-    context.stroke();
     context.font = `${20*scale}px Arial`;
     lineHeight = 20;
   } else { //other node styling
-    context.fillStyle = "white";
-    context.fill();
-    context.stroke();
     context.font = `${17*scale* generationScale}px Arial`;
+    lineHeight = 17;
   };
   
   context.textAlign = "center";
