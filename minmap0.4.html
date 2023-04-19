@@ -199,9 +199,12 @@
           context.setLineDash([]);
           const deleteButtonX = (node.x*scale) + (rectWidth/2) +10;
           const deleteButtonY = (node.y*scale) - (rectHeight/2) - 20;
+          if (deleteButtonX>canvas.width) {
+            deleteButton.style.display = "none"
+          } else {
           deleteButton.style.left = `${deleteButtonX}px`;
           deleteButton.style.top = `${deleteButtonY}px`;
-          deleteButton.style.display = "block";
+          deleteButton.style.display = "block";}
         }
         
        drawRoundedRect(node.x * scale -  maxLabelWidth / 2, y2,  maxLabelWidth, (lines.length+1)*lineHeight*scale*generationScale);
