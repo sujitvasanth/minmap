@@ -24,7 +24,7 @@
       const context = canvas.getContext("2d");
       canvas.width = (window.innerWidth)*0.98;
       canvas.height = (window.innerHeight)*0.98;  
-      canvas.style.backgroundColor = "#fffbe0"; //"#fff5d7"; //"#ebebf0";        
+      canvas.style.backgroundColor = "#fdf7ed";//"#fff0ef"; //"#fffbe0"; //"#fff5d7"; //"#ebebf0";        
       const hiddenInput = document.getElementById('hidden-input');
       const deleteButton = document.getElementById("delete-button");
       const zoomSlider = document.getElementById("zoom-slider");
@@ -40,7 +40,7 @@
       var nodes = [];let selectedNodeIndex = -1; 
       let lastTouchTime = 0;let drag = 0;
       const radiusX = 80;const radiusY = 30;
-      const cornerRadius = 20;
+      const cornerRadius = 18;
       var torm=[];let scale=1.0;
       var lastx=0;var lasty=0;
       var prevDiff = -1;//for pinch zoom
@@ -60,70 +60,70 @@
               .catch(function(error) {alert('Error saving file to Dropbox: ' + error.message);});};
           fileReader.readAsArrayBuffer(blob);}});
 
-loadButton.addEventListener('click', function() {
-  const dropbox = new Dropbox.Dropbox({ accessToken: accessToken });
-  dropbox.filesListFolder({path: '/Minmap'})
-    .then(function(response) {
-      const minmapFiles = response.entries.filter(function(file) {
-        return file.name.endsWith('.minmap');
-      });
-
-      const popup = document.createElement('div');
-      popup.style.position = 'absolute';
-      popup.style.zIndex = '1';
-      popup.style.backgroundColor = '#007bee';
-      popup.style.border = '1px solid #ddd';
-      popup.style.borderRadius = '5px';
-      popup.style.padding = '5px';
-      popup.style.width = '50%';
-      popup.style.height = '25%';
-      popup.style.left = '50%';
-      popup.style.top = '50%';
-      popup.style.transform = 'translate(-50%, -50%)';
-
-      const popupList = document.createElement('select');
-      popupList.style.padding = '15px';
-      popupList.style.width = '100%';
-      popupList.style.backgroundColor = '#fff';
-      popupList.style.color = '#000';
-      popupList.style.fontSize = '18px';
-      popupList.style.border = '1px solid #ccc';
-      popupList.size = 5;
-
-      minmapFiles.forEach(function(file) {
-        const option = document.createElement('option');
-        option.value = file.path_lower;
-        option.textContent = file.name;
-        popupList.appendChild(option);
-      });
-
-      const selectButton = document.createElement('button');
-      selectButton.textContent = 'Open';
-      selectButton.style.marginRight = '10px';
-      selectButton.style.fontSize = '18px';
-      selectButton.addEventListener('click', function() {
-        const selected = popupList.querySelector('option:checked');
-        if (selected) {
-          dropbox.filesDownload({ path: selected.value })
-            .then(function(response) {
-              const blob = new Blob([response.fileBlob], { type: "application/json" });
-              const reader = new FileReader();
-              reader.onload = function(event) {
-                const data = JSON.parse(event.target.result);
-                nodes = data;
-                selectedNodeIndex = 0;
-                redraw();
-              };
-              reader.readAsText(blob);
-            })
-            .catch(function(error) {
-              alert('Error loading file from Dropbox: ' + error.message);
+      loadButton.addEventListener('click', function() {
+        const dropbox = new Dropbox.Dropbox({ accessToken: accessToken });
+        dropbox.filesListFolder({path: '/Minmap'})
+          .then(function(response) {
+            const minmapFiles = response.entries.filter(function(file) {
+              return file.name.endsWith('.minmap');
             });
-          document.body.removeChild(popup);
-        } else {
-          alert('Please select a file.');
-        }
-      });
+
+            const popup = document.createElement('div');
+            popup.style.position = 'absolute';
+            popup.style.zIndex = '1';
+            popup.style.backgroundColor = '#007bee';
+            popup.style.border = '1px solid #ddd';
+            popup.style.borderRadius = '5px';
+            popup.style.padding = '5px';
+            popup.style.width = '50%';
+            popup.style.height = '25%';
+            popup.style.left = '50%';
+            popup.style.top = '50%';
+            popup.style.transform = 'translate(-50%, -50%)';
+
+            const popupList = document.createElement('select');
+            popupList.style.padding = '15px';
+            popupList.style.width = '100%';
+            popupList.style.backgroundColor = '#fff';
+            popupList.style.color = '#000';
+            popupList.style.fontSize = '18px';
+            popupList.style.border = '1px solid #ccc';
+            popupList.size = 5;
+
+            minmapFiles.forEach(function(file) {
+              const option = document.createElement('option');
+              option.value = file.path_lower;
+              option.textContent = file.name;
+              popupList.appendChild(option);
+            });
+
+            const selectButton = document.createElement('button');
+            selectButton.textContent = 'Open';
+            selectButton.style.marginRight = '10px';
+            selectButton.style.fontSize = '18px';
+            selectButton.addEventListener('click', function() {
+              const selected = popupList.querySelector('option:checked');
+              if (selected) {
+                dropbox.filesDownload({ path: selected.value })
+                  .then(function(response) {
+                    const blob = new Blob([response.fileBlob], { type: "application/json" });
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                      const data = JSON.parse(event.target.result);
+                      nodes = data;
+                      selectedNodeIndex = 0;
+                      redraw();
+                    };
+                    reader.readAsText(blob);
+                  })
+                  .catch(function(error) {
+                    alert('Error loading file from Dropbox: ' + error.message);
+                  });
+                document.body.removeChild(popup);
+              } else {
+                alert('Please select a file.');
+              }
+            });
 
       const cancelButton = document.createElement('button');
       cancelButton.textContent = 'Cancel';
@@ -152,91 +152,93 @@ loadButton.addEventListener('click', function() {
       });
 
   
-function drawNode(node) {
-  var lineHeight = 17
-  context.beginPath();
-  var nodelabel = node.label
-  const generation = countIterations(nodes.indexOf(node), 0);
-  const generationScale = Math.pow(0.9, generation);        
-  const rectWidth = radiusX * 2 * scale * generationScale;
-  const rectHeight = radiusY * 2 * scale * generationScale;
-  const colors = ["#e0b6c1","#bfe0ef","#c3e6cb",   "#ffe4c4",  "#ffdab9"];
-  
-  function drawRoundedRect(x, y, width, height) {
-    context.beginPath();context.moveTo(x + cornerRadius*scale*generationScale, y);
-    context.lineTo(x + width - cornerRadius*scale*generationScale, y);
-    context.quadraticCurveTo(x + width, y, x + width, y + cornerRadius*scale*generationScale);
-    context.lineTo(x + width, y + height - cornerRadius*scale*generationScale);
-    context.quadraticCurveTo(x + width, y + height, x + width - cornerRadius*scale*generationScale, y + height);
-    context.lineTo(x + cornerRadius*scale*generationScale, y + height);
-    context.quadraticCurveTo(x, y + height, x, y + height - cornerRadius*scale*generationScale);
-    context.lineTo(x, y + cornerRadius*scale*generationScale); context.quadraticCurveTo(x, y, x + cornerRadius*scale*generationScale, y);
-    context.closePath();}  
-  
-    const lines = nodelabel.split("\n");
-    let maxLabelWidth = 10;
-    if (nodes.indexOf(node) === 0) { //root node styling
-      context.font = `${20*scale}px Arial`;
-    } else { //other node styling
-      context.font = `${17*scale* generationScale}px Arial`;
-    };
-    for (let i = 0; i < lines.length; i++) {
-      const lineWidth = context.measureText(lines[i]).width;
-      if (lineWidth > maxLabelWidth) {maxLabelWidth = lineWidth;}}
-    maxLabelWidth += 20*scale;
-    const y2 = (node.y - (lineHeight*generationScale * (lines.length+1)) / 2)*scale;
-  
-  if (nodes.indexOf(node) === selectedNodeIndex){
-    context.lineWidth = 1;
-    context.setLineDash([8, 11]);
-    context.beginPath();
-    drawRoundedRect(node.x * scale - maxLabelWidth / 2 - 5, y2 - 5, (maxLabelWidth + 10), ((lines.length+1)*lineHeight*scale*generationScale) + 10);
-    context.stroke();
-    context.beginPath();
-    context.lineWidth = 1;
-    context.setLineDash([]);
-    const deleteButtonX = (node.x*scale) + (rectWidth/2) +10;
-    const deleteButtonY = (node.y*scale) - (rectHeight/2) - 20;
-    deleteButton.style.left = `${deleteButtonX}px`;
-    deleteButton.style.top = `${deleteButtonY}px`;
-    deleteButton.style.display = "block";
-  }
-  
- drawRoundedRect(node.x * scale -  maxLabelWidth / 2, y2,  maxLabelWidth, (lines.length+1)*lineHeight*scale*generationScale);
- context.fillStyle = colors[generation]
- context.fill();
- context.stroke();
+      function drawNode(node) {
+        var lineHeight = 17
+        context.beginPath();
+        var nodelabel = node.label
+        const generation = countIterations(nodes.indexOf(node), 0);
+        const generationScale = Math.pow(0.9, generation);        
+        const rectWidth = radiusX * 2 * scale * generationScale;
+        const rectHeight = radiusY * 2 * scale * generationScale;
+        const colors = ["#e0b6c1","#bfe0ef","#c3e6cb",   "#ffe4c4",  "#ffdab9"];
+        
+        function drawRoundedRect(x, y, width, height) {
+          context.beginPath();context.moveTo(x + cornerRadius*scale*generationScale, y);
+          context.lineTo(x + width - cornerRadius*scale*generationScale, y);
+          context.quadraticCurveTo(x + width, y, x + width, y + cornerRadius*scale*generationScale);
+          context.lineTo(x + width, y + height - cornerRadius*scale*generationScale);
+          context.quadraticCurveTo(x + width, y + height, x + width - cornerRadius*scale*generationScale, y + height);
+          context.lineTo(x + cornerRadius*scale*generationScale, y + height);
+          context.quadraticCurveTo(x, y + height, x, y + height - cornerRadius*scale*generationScale);
+          context.lineTo(x, y + cornerRadius*scale*generationScale); context.quadraticCurveTo(x, y, x + cornerRadius*scale*generationScale, y);
+          context.closePath();}  
+        
+        const lines = nodelabel.split("\n");
+        var maxLabelWidth = 50*scale*generationScale;
+        var pad = 20*scale*generationScale
+        if (generation == 0) { //root node styling
+          context.font = `${23*scale}px Arial`;
+          maxLabelWidth = 70*scale
+          } else { //other node styling
+          context.font = `${17*scale* generationScale}px Arial`;
+          };
+          for (let i = 0; i < lines.length; i++) {
+            const lineWidth = context.measureText(lines[i]).width;
+            if (lineWidth > maxLabelWidth) {maxLabelWidth = lineWidth;}}
+          maxLabelWidth += pad;
+          const y2 = (node.y - (lineHeight*generationScale * (lines.length+1)) / 2)*scale;
+        
+        if (nodes.indexOf(node) === selectedNodeIndex){
+          context.lineWidth = 1;
+          context.setLineDash([8, 11]);
+          context.beginPath();
+          drawRoundedRect(node.x * scale - maxLabelWidth / 2 - 5, y2 - 5, (maxLabelWidth + 10), ((lines.length+1)*lineHeight*scale*generationScale) + 10);
+          context.stroke();
+          context.beginPath();
+          context.lineWidth = 1;
+          context.setLineDash([]);
+          const deleteButtonX = (node.x*scale) + (rectWidth/2) +10;
+          const deleteButtonY = (node.y*scale) - (rectHeight/2) - 20;
+          deleteButton.style.left = `${deleteButtonX}px`;
+          deleteButton.style.top = `${deleteButtonY}px`;
+          deleteButton.style.display = "block";
+        }
+        
+       drawRoundedRect(node.x * scale -  maxLabelWidth / 2, y2,  maxLabelWidth, (lines.length+1)*lineHeight*scale*generationScale);
+       context.fillStyle = colors[generation]
+       context.fill();
+       context.stroke();
 
-  if (nodes.indexOf(node) === 0) { //root node styling
-    context.font = `${20*scale}px Arial`;
-    lineHeight = 20;
-  } else { //other node styling
-    context.font = `${17*scale* generationScale}px Arial`;
-    lineHeight = 17;
-  };
-  
-  context.textAlign = "center";
-  context.fillStyle = "black";
-  const y = (node.y - (lineHeight * (lines.length-1.5)) / 2)*scale;
-  lines.forEach((line, i) => {context.fillText(line, node.x*scale, y + i * lineHeight*scale);});
-  
-  if (nodes.indexOf(node) === selectedNodeIndex){        
-    const cursorPos = hiddenInput.selectionStart;
-    const labelBeforeCursor = nodes[selectedNodeIndex].label.slice(0, cursorPos);           
-    const linesBeforeCursor = labelBeforeCursor.split("\n");
-    const cursorline = linesBeforeCursor.length-1;
-    const lineOfCursor = linesBeforeCursor[cursorline]
-    const totallines = lines.length-1
-    const cursorY = (node.y + (lineHeight *( ((totallines-1) / 2)-(totallines-cursorline)) ) )* scale;
-    const wholeLabelWidth = context.measureText(lines[cursorline]).width;
-    const labelBeforeCursorWidth = context.measureText(lineOfCursor).width;
-    const cursorX = (node.x)* scale +labelBeforeCursorWidth - wholeLabelWidth/2;
-    context.beginPath();
-    context.moveTo(cursorX, cursorY);
-    context.lineTo(cursorX, cursorY + lineHeight*scale* generationScale);
-    context.stroke();
-  }
-}
+        if (nodes.indexOf(node) === 0) { //root node styling
+          context.font = `${20*scale}px Arial`;
+          lineHeight = 20;
+        } else { //other node styling
+          context.font = `${17*scale* generationScale}px Arial`;
+          lineHeight = 17;
+        };
+        
+        context.textAlign = "center";
+        context.fillStyle = "black";
+        const y = (node.y - (lineHeight * (lines.length-1.5)) / 2)*scale;
+        lines.forEach((line, i) => {context.fillText(line, node.x*scale, y + i * lineHeight*scale);});
+        
+        if (nodes.indexOf(node) === selectedNodeIndex){        
+          const cursorPos = hiddenInput.selectionStart;
+          const labelBeforeCursor = nodes[selectedNodeIndex].label.slice(0, cursorPos);           
+          const linesBeforeCursor = labelBeforeCursor.split("\n");
+          const cursorline = linesBeforeCursor.length-1;
+          const lineOfCursor = linesBeforeCursor[cursorline]
+          const totallines = lines.length-1
+          const cursorY = (node.y + (lineHeight *( ((totallines-1) / 2)-(totallines-cursorline)) ) )* scale;
+          const wholeLabelWidth = context.measureText(lines[cursorline]).width;
+          const labelBeforeCursorWidth = context.measureText(lineOfCursor).width;
+          const cursorX = (node.x)* scale +labelBeforeCursorWidth - wholeLabelWidth/2;
+          context.beginPath();
+          context.moveTo(cursorX, cursorY);
+          context.lineTo(cursorX, cursorY + lineHeight*scale* generationScale);
+          context.stroke();
+        }
+      }
 
       function countIterations(index, iteration) {
         if (index === 0) return iteration;
