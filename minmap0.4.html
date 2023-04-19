@@ -199,7 +199,7 @@
           context.setLineDash([]);
           const deleteButtonX = (node.x*scale) + (rectWidth/2) +10;
           const deleteButtonY = (node.y*scale) - (rectHeight/2) - 20;
-          if (deleteButtonX>canvas.width) {
+          if (deleteButtonX>canvas.width-50) {
             deleteButton.style.display = "none"
           } else {
           deleteButton.style.left = `${deleteButtonX}px`;
