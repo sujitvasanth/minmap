@@ -288,7 +288,8 @@
           if (node) {
             var ev = document.createEvent('HTMLEvents');
           } else {
-            addNode(x, y);redraw()}
+            if (evCache.length==1) {
+            addNode(x, y);redraw()}}
         } else {
           if (node) {
             pan=false
@@ -309,6 +310,7 @@
             evCache[i] = event;}
             }
         if (evCache.length > 1)  {
+          drag=0;
           var curDiff = Math.sqrt(Math.pow(evCache[1].clientX - evCache[0].clientX, 2) + Math.pow(evCache[1].clientY - evCache[0].clientY, 2));
           const oldscale=scale
           if (prevDiff > 0) {scale += 0.01*(curDiff-prevDiff);};
