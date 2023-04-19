@@ -314,6 +314,7 @@
           var curDiff = Math.sqrt(Math.pow(evCache[1].clientX - evCache[0].clientX, 2) + Math.pow(evCache[1].clientY - evCache[0].clientY, 2));
           const oldscale=scale
           if (prevDiff > 0) {scale += 0.01*(curDiff-prevDiff);};
+          if (scale < 0) {scale=oldscale;};
           moveNode(0 ,(canvas.width*0.5*oldscale/scale-canvas.width*0.5)/oldscale,
             (canvas.height*0.5*oldscale/scale-canvas.height*0.5)/oldscale);
           prevDiff = curDiff;
