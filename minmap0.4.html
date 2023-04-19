@@ -283,7 +283,7 @@
         const currentTime = new Date().getTime();
         const tapLength = currentTime - lastTouchTime;
         lastTouchTime = currentTime;
-        if (tapLength < 500 && tapLength > 100) {//double click event
+        if (tapLength < 250 && tapLength > 100) {//double click event
           hiddenInput.focus(); 
           if (node) {
             var ev = document.createEvent('HTMLEvents');
