@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+''<!DOCTYPE html>
 <html>
   <head>
     <title>Mind Map</title>
@@ -23,7 +23,7 @@
       const canvas = document.getElementById("canvas");
       const context = canvas.getContext("2d");
       canvas.width = (window.innerWidth)*0.98;
-      canvas.height = (window.innerHeight)*0.98;  
+      canvas.height = 500 //(window.innerHeight)*0.98;  
       canvas.style.backgroundColor = "#fdf7ed";//"#fff0ef"; //"#fffbe0"; //"#fff5d7"; //"#ebebf0";        
       const hiddenInput = document.getElementById('hidden-input');
       const deleteButton = document.getElementById("delete-button");
@@ -182,8 +182,8 @@
           context.beginPath();
           context.lineWidth = 1;
           context.setLineDash([]);
-          const deleteButtonX = (node.x*scale) + (rectWidth/2) +10;
-          const deleteButtonY = (node.y*scale) - (rectHeight/2) - 20;
+          const deleteButtonX = (node.x*scale) + maxLabelWidth/2;
+          const deleteButtonY = (y2-5) + (lines.length+1)*lineHeight*scale*generationScale*0.5;
           if (deleteButtonX>canvas.width-50) {
             deleteButton.style.display = "none"
           } else {
