@@ -46,6 +46,40 @@
       var prevDiff = -1;//for pinch zoom
       var evCache = new Array(); //for pointer touch cache
       var pan = false
+      
+      
+      context.font = "30px Arial";
+      context.fillStyle = "black";
+      context.textAlign = "center";
+      context.fillText("Minmap", canvas.width/2, canvas.height/6);
+      context.font = "10px Arial";
+      context.fillText("Platform Agnostic Mindmaps", canvas.width/2, canvas.height/6+15);
+      context.font = "10px Arial";
+      context.fillText("by Sujit Vasanth", canvas.width/2+20, canvas.height/6+30);
+      // Draw circle with plus sign
+      context.beginPath();
+      context.arc(canvas.width/2, canvas.height/6+70, 27, 0, 2*Math.PI);
+      context.fillStyle = "#e0b6c1";
+      context.fill();
+      context.beginPath();
+      context.lineWidth = 5;
+      context.strokeStyle = "white";
+      var length = 25;
+      var x = canvas.width/2;
+      var y = canvas.height/6+70;
+      context.moveTo(x - length/2, y);
+      context.lineTo(x + length/2, y);
+      context.moveTo(x, y - length/2);
+      context.lineTo(x, y + length/2);
+      context.stroke();
+
+      // Set font for message
+      context.font = "12px Arial";
+      context.fillStyle = "black";
+      context.textAlign = "center";
+      context.fillText("Double-tap", canvas.width/2, canvas.height/6+115);
+      context.strokeStyle = "black";
+
   
       saveButton.addEventListener("click", function() {
         const fileName = prompt("Please enter a filename for your Mind Map:", "mindmap");
@@ -323,6 +357,7 @@
           prevDiff = curDiff;
           zoomSlider.value = scale;
           event=evCache[0];
+          redraw();
           }
         else if (drag) {
           if (selectedNodeIndex == -1) {return;}
@@ -335,8 +370,10 @@
           moveNode(selectedNodeIndex , dx, dy);
           hiddenInput.blur();}
           else {moveNode(0 , dx, dy);}
-          lastx=x;lasty=y;}
-        redraw();
+          lastx=x;lasty=y;
+          redraw();
+          }
+        
         }
 
       function moveNode(index, dx, dy) {
