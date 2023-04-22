@@ -15,7 +15,7 @@
    <textarea id="hidden-input" style="opacity: 0; position: absolute; top: 20px; left: 20px; font-size: 17px; font-family: Arial; border: none; outline: none; text-align: center;" rows="4" columns="25"></textarea>
    <button id="delete-button" style="position: absolute; top: 10px; right: 10px; width: 5.5ch; font-size: 17px; display: none; "> Del </button>
    <input type="range" id="zoom-slider" min="0.01" max="2" step="0.01" value="1"; style="position: absolute; top: 20px; left: 20px; width: 600px">
-   <button id="authenticate-button" style="position: absolute; top: 10px; right: 170px; width: 10ch; font-size: 17px;">Authenticate</button>
+   <button id="authenticate-button" style="position: absolute; top: 10px; right: 170px; width: 12ch; font-size: 17px;">Authenticate</button>
    <button id="save-button" style="position: absolute; top: 10px; right: 90px; width: 6ch; font-size: 17px;">Save</button>
    <button id="load-button" style="position: absolute; top: 10px; right: 10px; width: 6ch; font-size: 17px;">Load</button>
 
@@ -35,8 +35,7 @@
       const authenticateButton = document.getElementById("authenticate-button");
       const urlParams = new URLSearchParams(window.location.hash.substring(1));
       const accessToken = urlParams.get("access_token");
-      if (accessToken) {authenticateButton.style.display = "none";}
-      else {saveButton.disabled = true;loadButton.disabled = true;}
+      if (!accessToken) {saveButton.disabled = true;loadButton.disabled = true;}
       var nodes = [];let selectedNodeIndex = -1; 
       let lastTouchTime = 0;let drag = 0;
       const radiusX = 80;const radiusY = 30;
@@ -47,40 +46,19 @@
       var evCache = new Array(); //for pointer touch cache
       var pan = false
       
-      
-      context.font = "30px Arial";
-      context.fillStyle = "black";
-      context.textAlign = "center";
+      context.font = "30px Arial";context.fillStyle = "black";context.textAlign = "center";
       context.fillText("Minmap", canvas.width/2, canvas.height/6);
-      context.font = "10px Arial";
-      context.fillText("Platform Agnostic Mindmaps", canvas.width/2, canvas.height/6+15);
-      context.font = "10px Arial";
+      context.font = "10px Arial";context.fillText("Platform Agnostic Mindmaps", canvas.width/2, canvas.height/6+15);
       context.fillText("by Sujit Vasanth", canvas.width/2+20, canvas.height/6+30);
-      // Draw circle with plus sign
-      context.beginPath();
-      context.arc(canvas.width/2, canvas.height/6+70, 27, 0, 2*Math.PI);
-      context.fillStyle = "#e0b6c1";
-      context.fill();
-      context.beginPath();
-      context.lineWidth = 5;
-      context.strokeStyle = "white";
-      var length = 25;
-      var x = canvas.width/2;
-      var y = canvas.height/6+70;
-      context.moveTo(x - length/2, y);
-      context.lineTo(x + length/2, y);
-      context.moveTo(x, y - length/2);
-      context.lineTo(x, y + length/2);
-      context.stroke();
-
-      // Set font for message
-      context.font = "12px Arial";
-      context.fillStyle = "black";
-      context.textAlign = "center";
-      context.fillText("Double-tap", canvas.width/2, canvas.height/6+115);
+      context.font = "12px Arial";context.fillText("Double-tap", canvas.width/2, canvas.height/6+115);           
+      context.beginPath();context.arc(canvas.width/2, canvas.height/6+70, 27, 0, 2*Math.PI);
+      context.fillStyle = "#e0b6c1";context.fill();
+      context.beginPath();context.lineWidth = 5;context.strokeStyle = "white";
+      var length = 25;var x = canvas.width/2;var y = canvas.height/6+70;
+      context.moveTo(x - length/2, y);context.lineTo(x + length/2, y);
+      context.moveTo(x, y - length/2);context.lineTo(x, y + length/2);context.stroke();
       context.strokeStyle = "black";
 
-  
       saveButton.addEventListener("click", function() {
         const fileName = prompt("Please enter a filename for your Mind Map:", "mindmap");
         if (fileName != null) {
@@ -94,48 +72,29 @@
               .catch(function(error) {alert('Error saving file to Dropbox: ' + error.message);});};
           fileReader.readAsArrayBuffer(blob);}});
 
-      loadButton.addEventListener('click', function() {
-        const dropbox = new Dropbox.Dropbox({ accessToken: accessToken });
-        dropbox.filesListFolder({path: '/Minmap'})
-          .then(function(response) {
-            const minmapFiles = response.entries.filter(function(file) {
-              return file.name.endsWith('.minmap');
-            });
+      loadButton.addEventListener('click', () => {
+        const dropbox = new Dropbox.Dropbox({ accessToken });
+        dropbox.filesListFolder({ path: '/Minmap' })
+          .then(({ entries }) => {
+            const minmapFiles = entries.filter(file => file.name.endsWith('.minmap'));
 
             const popup = document.createElement('div');
-            popup.style.position = 'absolute';
-            popup.style.zIndex = '1';
-            popup.style.backgroundColor = '#007bee';
-            popup.style.border = '1px solid #ddd';
-            popup.style.borderRadius = '5px';
-            popup.style.padding = '5px';
-            popup.style.width = '50%';
-            popup.style.height = '25%';
-            popup.style.left = '50%';
-            popup.style.top = '50%';
-            popup.style.transform = 'translate(-50%, -50%)';
+            popup.style = `position: absolute; z-index: 1; background-color: #007bee; border: 1px solid #ddd; border-radius: 5px; padding: 5px; width: 50%; height: 25%; left: 50%; top: 50%; transform: translate(-50%, -50%);`;
 
             const popupList = document.createElement('select');
-            popupList.style.padding = '15px';
-            popupList.style.width = '100%';
-            popupList.style.backgroundColor = '#fff';
-            popupList.style.color = '#000';
-            popupList.style.fontSize = '18px';
-            popupList.style.border = '1px solid #ccc';
+            popupList.style = `padding: 15px; width: 100%; background-color: #fff; color: #000; font-size: 18px; border: 1px solid #ccc;`;
             popupList.size = 5;
-
-            minmapFiles.forEach(function(file) {
+            popupList.append(...minmapFiles.map(({ path_lower, name }) => {
               const option = document.createElement('option');
-              option.value = file.path_lower;
-              option.textContent = file.name;
-              popupList.appendChild(option);
-            });
+              option.value = path_lower;
+              option.textContent = name;
+              return option;
+            }));
 
             const selectButton = document.createElement('button');
             selectButton.textContent = 'Open';
-            selectButton.style.marginRight = '10px';
-            selectButton.style.fontSize = '18px';
-            selectButton.addEventListener('click', function() {
+            selectButton.style = `margin-right: 10px; font-size: 18px;`;
+            selectButton.addEventListener('click', () => {
               const selected = popupList.querySelector('option:checked');
               if (selected) {
                 dropbox.filesDownload({ path: selected.value })
@@ -150,40 +109,32 @@
                     };
                     reader.readAsText(blob);
                   })
-                  .catch(function(error) {
-                    alert('Error loading file from Dropbox: ' + error.message);
-                  });
+                  .catch(({ message }) => alert(`Error loading file from Dropbox: ${message}`));
                 document.body.removeChild(popup);
               } else {
                 alert('Please select a file.');
               }
             });
 
-      const cancelButton = document.createElement('button');
-      cancelButton.textContent = 'Cancel';
-      selectButton.style.fontSize = '18px';
-      cancelButton.addEventListener('click', function() {
-        document.body.removeChild(popup);
+            const cancelButton = document.createElement('button');
+            cancelButton.textContent = 'Cancel';
+            cancelButton.style = `font-size: 18px;`;
+            cancelButton.addEventListener('click', () => document.body.removeChild(popup));
+
+            popup.append(popupList, selectButton, cancelButton);
+            document.body.appendChild(popup);
+          })
+          .catch(({ message }) => alert(`Error listing files in Dropbox: ${message}`));
       });
 
-      popup.appendChild(popupList);
-      popup.appendChild(selectButton);
-      popup.appendChild(cancelButton);
-      document.body.appendChild(popup);
 
-    })
-    .catch(function(error) {
-      alert('Error listing files in Dropbox: ' + error.message);
-    });
-});
       authenticateButton.addEventListener("click", function() {
         // Replace 'YOUR_APP_KEY' with your Dropbox app key
         const appKey = 'uyt17co0totx5rx';
         var redirectUri = 'https://minmap.vercel.app';
         if (window.location.protocol === 'file:') {redirectUri = 'http://localhost/minmap0.4.html';}
         let dbx = new Dropbox.Dropbox({ clientId: appKey });
-        window.location.href = dbx.getAuthenticationUrl(redirectUri);
-      });
+        window.location.href = dbx.getAuthenticationUrl(redirectUri);});
 
   
       function drawNode(node) {
