@@ -40,7 +40,7 @@
       const authenticateButton = document.getElementById("authenticate-button");
       const urlParams = new URLSearchParams(window.location.hash.substring(1));
       const accessToken = urlParams.get("access_token"); if (!accessToken) {saveButton.disabled = true;loadButton.disabled = true;}
-      var nodes = [];let selectedNodeIndex = -1; var subtreeindices=[];
+      var nodes = [];let selectedNodeIndex = -1; var subtreeindices=[];nodesclipboard=[];
       const radiusX = 80;const radiusY = 30;const cornerRadius = 18;
       let lastTouchTime = 0;var lastx=0;var lasty=0;let drag = 0;var pan = false
       let scale=1.0;var prevDiff = -1;var evCache = new Array(); //for pinch zoom and pointer touch cache
@@ -66,8 +66,7 @@
         if (cutButton.style.display=="none") {menuupdate(1);} else {menuupdate(0);}
       });
             
-      copyButton.addEventListener("click", function() {
-        menuupdate(0)});
+      copyButton.addEventListener("click", cutSelectedNode);
         
       pasteButton.addEventListener("click", function() {
         menuupdate(0)});
@@ -329,24 +328,35 @@
       function cutSelectedNode(event) {
         menuupdate(0);
         if (selectedNodeIndex === 0) {
-          selectedNodeIndex = -1;
-          nodes.splice(0);
+          nodesclipboard=nodes;selectedNodeIndex = -1;nodes.splice(0);
         } else { 
           subtreeindices=[]; //list of nodes to remove        
-          const prentNodeIndex = nodes.findIndex((prent) => prent.children.includes(selectedNodeIndex));          
-          const nodeChildIndex = nodes[prentNodeIndex].children.indexOf(selectedNodeIndex);
           findSubtree(selectedNodeIndex); //get array of subtreeindices
           subtreeindices.push(selectedNodeIndex)
           subtreeindices.sort((a, b) => b - a);
-          for (var i = 0; i < subtreeindices.length; i++) {
-                nodes.splice(subtreeindices[i], 1);
-                nodes.forEach((node) => {
-                  for (var j = 0; j < node.children.length; j++) {
-                    if (node.children[j] > subtreeindices[i]) {
-                      node.children[j]--;}}
-                });}
-          nodes[prentNodeIndex].children.splice(nodeChildIndex, 1);
-          selectedNodeIndex = prentNodeIndex;}           
+          
+          nodesclipboard=[];//copy the subtree nodes to clipboard and renumber the children
+          for (var i = subtreeindices.length - 1; i >= 0; i--) {
+            nodesclipboard.push(nodes[subtreeindices[i]]);}
+          for (var i = 0; i < nodesclipboard.length; i++) {
+            for (var j = 0; j < nodesclipboard[i].children.length; j++) {
+                  var oldIndex = nodesclipboard[i].children[j];
+                  var newIndex = subtreeindices.length -1 - subtreeindices.indexOf(oldIndex);
+                  nodesclipboard[i].children[j] = newIndex;}}
+          
+          if (event.target.textContent==" Cut ") {//delete the subtree nodes and renumber the children
+            const prentNodeIndex = nodes.findIndex((prent) => prent.children.includes(selectedNodeIndex));          
+            const nodeChildIndex = nodes[prentNodeIndex].children.indexOf(selectedNodeIndex);
+            for (var i = 0; i < subtreeindices.length; i++) {
+                  nodes.splice(subtreeindices[i], 1);
+                  nodes.forEach((node) => {
+                    for (var j = 0; j < node.children.length; j++) {
+                      if (node.children[j] > subtreeindices[i]) {
+                        node.children[j]--;}}
+                  });}
+            nodes[prentNodeIndex].children.splice(nodeChildIndex, 1);
+            selectedNodeIndex = prentNodeIndex;}}           
+          
           redraw();}
 
       function findSubtree(index) {
