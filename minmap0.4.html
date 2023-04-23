@@ -1,51 +1,50 @@
-''<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
   <head>
     <title>Mind Map</title>
     <style>
-      canvas {
-        border: 1px solid black;
-        touch-action: none;
-      }
+      canvas {border: 1px solid black;touch-action: none;}
     </style>
     <script src="https://unpkg.com/dropbox@4.0.30/dist/Dropbox-sdk.min.js"></script>
   </head>
   <body>
    <canvas id="canvas" width="600" height="300"></canvas>
    <textarea id="hidden-input" style="opacity: 0; position: absolute; top: 20px; left: 20px; font-size: 17px; font-family: Arial; border: none; outline: none; text-align: center;" rows="4" columns="25"></textarea>
-   <button id="delete-button" style="position: absolute; top: 10px; right: 10px; width: 5.5ch; font-size: 17px; display: none; "> Del </button>
+   <button id="cut-button" style="position: absolute; top: 10px; right: 10px; width: 6ch; font-size: 14px; display: none; "> Cut </button>
+   <button id="copy-button" style="position: absolute; top: 10px; right: 10px; width: 6ch; font-size: 14px; display: none; "> Copy </button>
+   <button id="paste-button" style="position: absolute; top: 10px; right: 10px; width: 6ch; font-size: 14px; display: none; "> Paste </button>
+   <button id="options-button" style="position: absolute; top: 10px; right: 10px; width: 3.5ch; font-size: 14px; display: none; ">...</button>
    <input type="range" id="zoom-slider" min="0.01" max="2" step="0.01" value="1"; style="position: absolute; top: 20px; left: 20px; width: 600px">
-   <button id="authenticate-button" style="position: absolute; top: 10px; right: 170px; width: 12ch; font-size: 17px;">Authenticate</button>
-   <button id="save-button" style="position: absolute; top: 10px; right: 90px; width: 6ch; font-size: 17px;">Save</button>
-   <button id="load-button" style="position: absolute; top: 10px; right: 10px; width: 6ch; font-size: 17px;">Load</button>
-
+   <button id="authenticate-button" style="position: absolute; top: 15px; right: 220px; width: 12ch; font-size: 14px;">Authenticate</button>
+   <button id="save-button" style="position: absolute; top: 15px; right: 120px; width: 10ch; font-size: 17px;">SaveCloud</button>
+   <button id="load-button" style="position: absolute; top: 15px; right: 17px; width: 10ch; font-size: 17px;">LoadCloud</button>
+   <button id="loadLocal-button" style="position: absolute; top: 45px; right: 17px; width: 10ch; font-size: 17px;">LoadLocal</button>
+   <button id="saveLocal-button" style="position: absolute; top: 45px; right: 120px; width: 10ch; font-size: 17px;">SaveLocal</button>
     <script>
       const canvas = document.getElementById("canvas");
-      const context = canvas.getContext("2d");
-      canvas.width = (window.innerWidth)*0.98;
-      canvas.height = 500 //(window.innerHeight)*0.98;  
-      canvas.style.backgroundColor = "#fdf7ed";//"#fff0ef"; //"#fffbe0"; //"#fff5d7"; //"#ebebf0";        
+        canvas.width = (window.innerWidth)*0.98;
+        canvas.height = (window.innerHeight)*0.98;  
+        canvas.style.backgroundColor = "#fdf7ed";//"#fff0ef"; //"#fffbe0"; //"#fff5d7"; //"#ebebf0"; 
+      const context = canvas.getContext("2d");  
       const hiddenInput = document.getElementById('hidden-input');
-      const deleteButton = document.getElementById("delete-button");
-      const zoomSlider = document.getElementById("zoom-slider");
-      zoomSlider.style.background = "transparent";
+      const cutButton = document.getElementById("cut-button");
+      const copyButton = document.getElementById("copy-button");
+      const pasteButton = document.getElementById("paste-button");
+      const optionsButton = document.getElementById("options-button");
+      const zoomSlider = document.getElementById("zoom-slider");zoomSlider.style.background = "transparent";
       const fileInput = document.getElementById("file-input");
       const saveButton = document.getElementById("save-button");
       const loadButton = document.getElementById("load-button");
+      const loadLocalButton = document.getElementById("loadLocal-button");
+      const saveLocalButton = document.getElementById("saveLocal-button");
       const authenticateButton = document.getElementById("authenticate-button");
       const urlParams = new URLSearchParams(window.location.hash.substring(1));
-      const accessToken = urlParams.get("access_token");
-      if (!accessToken) {saveButton.disabled = true;loadButton.disabled = true;}
-      var nodes = [];let selectedNodeIndex = -1; 
-      let lastTouchTime = 0;let drag = 0;
-      const radiusX = 80;const radiusY = 30;
-      const cornerRadius = 18;
-      var torm=[];let scale=1.0;
-      var lastx=0;var lasty=0;
-      var prevDiff = -1;//for pinch zoom
-      var evCache = new Array(); //for pointer touch cache
-      var pan = false
-      
+      const accessToken = urlParams.get("access_token"); if (!accessToken) {saveButton.disabled = true;loadButton.disabled = true;}
+      var nodes = [];let selectedNodeIndex = -1; var subtreeindices=[];
+      const radiusX = 80;const radiusY = 30;const cornerRadius = 18;
+      let lastTouchTime = 0;var lastx=0;var lasty=0;let drag = 0;var pan = false
+      let scale=1.0;var prevDiff = -1;var evCache = new Array(); //for pinch zoom and pointer touch cache
+            
       context.font = "30px Arial";context.fillStyle = "black";context.textAlign = "center";
       context.fillText("Minmap", canvas.width/2, canvas.height/6);
       context.font = "10px Arial";context.fillText("Platform Agnostic Mindmaps", canvas.width/2, canvas.height/6+15);
@@ -58,6 +57,35 @@
       context.moveTo(x - length/2, y);context.lineTo(x + length/2, y);
       context.moveTo(x, y - length/2);context.lineTo(x, y + length/2);context.stroke();
       context.strokeStyle = "black";
+      
+      optionsButton.addEventListener("click", function() {
+        const left = optionsButton.style.left; const top = optionsButton.style.top;
+        cutButton.style.left = `${parseInt(left) + 20}px`;cutButton.style.top = `${parseInt(top) - 25}px`;
+        copyButton.style.left = `${parseInt(left) + 20}px`;copyButton.style.top = `${parseInt(top) - 50}px`;
+        pasteButton.style.left = `${parseInt(left) + 20}px`;pasteButton.style.top = `${parseInt(top) - 75}px`;
+        if (cutButton.style.display=="none") {menuupdate(1);} else {menuupdate(0);}
+      });
+            
+      copyButton.addEventListener("click", function() {
+        menuupdate(0)});
+        
+      pasteButton.addEventListener("click", function() {
+        menuupdate(0)});
+      
+      function menuupdate(state) {
+        var display="none"; if (state==1) {display="block"} 
+        cutButton.style.display = display;copyButton.style.display = display;
+        pasteButton.style.display = display;}
+      
+      saveLocalButton.addEventListener("click", function() {
+        localStorage.setItem("nodes", JSON.stringify(nodes));});    
+
+      loadLocalButton.addEventListener("click", function() {
+        const nodesStr = localStorage.getItem("nodes");
+        if (nodesStr) {
+          nodes = JSON.parse(nodesStr);
+          selectedNodeIndex = 0;
+          redraw();}});
 
       saveButton.addEventListener("click", function() {
         const fileName = prompt("Please enter a filename for your Mind Map:", "mindmap");
@@ -77,10 +105,8 @@
         dropbox.filesListFolder({ path: '/Minmap' })
           .then(({ entries }) => {
             const minmapFiles = entries.filter(file => file.name.endsWith('.minmap'));
-
             const popup = document.createElement('div');
             popup.style = `position: absolute; z-index: 1; background-color: #007bee; border: 1px solid #ddd; border-radius: 5px; padding: 5px; width: 50%; height: 25%; left: 50%; top: 50%; transform: translate(-50%, -50%);`;
-
             const popupList = document.createElement('select');
             popupList.style = `padding: 15px; width: 100%; background-color: #fff; color: #000; font-size: 18px; border: 1px solid #ccc;`;
             popupList.size = 5;
@@ -88,9 +114,7 @@
               const option = document.createElement('option');
               option.value = path_lower;
               option.textContent = name;
-              return option;
-            }));
-
+              return option;}));
             const selectButton = document.createElement('button');
             selectButton.textContent = 'Open';
             selectButton.style = `margin-right: 10px; font-size: 18px;`;
@@ -103,40 +127,26 @@
                     const reader = new FileReader();
                     reader.onload = function(event) {
                       const data = JSON.parse(event.target.result);
-                      nodes = data;
-                      selectedNodeIndex = 0;
-                      redraw();
-                    };
-                    reader.readAsText(blob);
-                  })
+                      nodes = data;selectedNodeIndex = 0;redraw();};
+                    reader.readAsText(blob);})
                   .catch(({ message }) => alert(`Error loading file from Dropbox: ${message}`));
                 document.body.removeChild(popup);
-              } else {
-                alert('Please select a file.');
-              }
-            });
-
+              } else {alert('Please select a file.');}});
             const cancelButton = document.createElement('button');
             cancelButton.textContent = 'Cancel';
             cancelButton.style = `font-size: 18px;`;
             cancelButton.addEventListener('click', () => document.body.removeChild(popup));
-
             popup.append(popupList, selectButton, cancelButton);
-            document.body.appendChild(popup);
-          })
-          .catch(({ message }) => alert(`Error listing files in Dropbox: ${message}`));
-      });
-
+            document.body.appendChild(popup);})
+          .catch(({ message }) => alert(`Error listing files in Dropbox: ${message}`));});
 
       authenticateButton.addEventListener("click", function() {
-        // Replace 'YOUR_APP_KEY' with your Dropbox app key
-        const appKey = 'uyt17co0totx5rx';
+        const appKey = 'uyt17co0totx5rx';// Replace 'YOUR_APP_KEY' with your Dropbox app key
         var redirectUri = 'https://minmap.vercel.app';
         if (window.location.protocol === 'file:') {redirectUri = 'http://localhost/minmap0.4.html';}
         let dbx = new Dropbox.Dropbox({ clientId: appKey });
         window.location.href = dbx.getAuthenticationUrl(redirectUri);});
 
-  
       function drawNode(node) {
         var lineHeight = 17
         context.beginPath();
@@ -164,46 +174,47 @@
         if (generation == 0) { //root node styling
           context.font = `${23*scale}px Arial`;
           maxLabelWidth = 70*scale
-          } else { //other node styling
-          context.font = `${17*scale* generationScale}px Arial`;
-          };
-          for (let i = 0; i < lines.length; i++) {
-            const lineWidth = context.measureText(lines[i]).width;
-            if (lineWidth > maxLabelWidth) {maxLabelWidth = lineWidth;}}
-          maxLabelWidth += pad;
-          const y2 = (node.y - (lineHeight*generationScale * (lines.length+1)) / 2)*scale;
+        } else {context.font = `${17*scale* generationScale}px Arial`;};//other node styling
+        for (let i = 0; i < lines.length; i++) {
+          const lineWidth = context.measureText(lines[i]).width;
+          if (lineWidth > maxLabelWidth) {maxLabelWidth = lineWidth;}}
+        maxLabelWidth += pad;
+        const y2 = (node.y - (lineHeight*generationScale * (lines.length+1)) / 2)*scale;
         
         if (nodes.indexOf(node) === selectedNodeIndex){
           context.lineWidth = 1;
-          context.setLineDash([8, 11]);
+          context.setLineDash([8*scale, 11*scale]);
           context.beginPath();
           drawRoundedRect(node.x * scale - maxLabelWidth / 2 - 5, y2 - 5, (maxLabelWidth + 10), ((lines.length+1)*lineHeight*scale*generationScale) + 10);
           context.stroke();
           context.beginPath();
           context.lineWidth = 1;
           context.setLineDash([]);
-          const deleteButtonX = (node.x*scale) + maxLabelWidth/2;
-          const deleteButtonY = (y2-5) + (lines.length+1)*lineHeight*scale*generationScale*0.5;
-          if (deleteButtonX>canvas.width-50) {
-            deleteButton.style.display = "none"
+          const optionsButtonX = (node.x*scale) + maxLabelWidth/2;  
+          const optionsButtonY = node.y*scale + (lines.length+2)*lineHeight*scale*generationScale*0.5;
+          if (optionsButtonX>canvas.width-50) {
+            optionsButton.style.display = "none";
+            menuupdate(0);
           } else {
-          deleteButton.style.left = `${deleteButtonX}px`;
-          deleteButton.style.top = `${deleteButtonY}px`;
-          deleteButton.style.display = "block";}
-        }
+          optionsButton.style.left = `${optionsButtonX}px`;
+          optionsButton.style.top = `${optionsButtonY}px`;
+          optionsButton.style.display = "block";
+          if (cutButton.style.display=="block") {
+            const left = optionsButton.style.left; const top = optionsButton.style.top;
+            cutButton.style.left = `${parseInt(left) + 20}px`;cutButton.style.top = `${parseInt(top) - 25}px`;
+            copyButton.style.left = `${parseInt(left) + 20}px`;copyButton.style.top = `${parseInt(top) - 50}px`;
+            pasteButton.style.left = `${parseInt(left) + 20}px`;pasteButton.style.top = `${parseInt(top) - 75}px`;}};
+          }
         
        drawRoundedRect(node.x * scale -  maxLabelWidth / 2, y2,  maxLabelWidth, (lines.length+1)*lineHeight*scale*generationScale);
-       context.fillStyle = colors[generation]
-       context.fill();
-       context.stroke();
+       context.fillStyle = colors[generation];context.fill();context.stroke();
 
         if (nodes.indexOf(node) === 0) { //root node styling
           context.font = `${20*scale}px Arial`;
           lineHeight = 20;
         } else { //other node styling
           context.font = `${17*scale* generationScale}px Arial`;
-          lineHeight = 17;
-        };
+          lineHeight = 17;};
         
         context.textAlign = "center";
         context.fillStyle = "black";
@@ -221,11 +232,9 @@
           const wholeLabelWidth = context.measureText(lines[cursorline]).width;
           const labelBeforeCursorWidth = context.measureText(lineOfCursor).width;
           const cursorX = (node.x)* scale +labelBeforeCursorWidth - wholeLabelWidth/2;
-          context.beginPath();
-          context.moveTo(cursorX, cursorY);
+          context.beginPath();context.moveTo(cursorX, cursorY);
           context.lineTo(cursorX, cursorY + lineHeight*scale* generationScale);
-          context.stroke();
-        }
+          context.stroke();}
       }
 
       function countIterations(index, iteration) {
@@ -242,16 +251,15 @@
 
       function redraw() {
         context.clearRect(0, 0, canvas.width, canvas.height);
-        if (selectedNodeIndex === -1) {deleteButton.style.display = "none";return;}
+        if (selectedNodeIndex === -1) {optionsButton.style.display = "none";return;}
         nodes.forEach((node, index) => {
           node.children.forEach((childIndex) => {
             const child = nodes[childIndex];
             context.beginPath(); //draw the connector
             context.moveTo(node.x*scale, node.y*scale);
             context.lineTo(child.x*scale, child.y*scale);
-            context.stroke();
-          });
-        drawNode(node);})}; //draw the node}
+            context.stroke();});
+            drawNode(node);})}; //draw the node
 
       function handlePointerDown(event) {
         evCache.push(event);
@@ -262,12 +270,9 @@
         const x = (event.clientX - rect.left)/scale;
         const y = (event.clientY - rect.top)/scale;
         const node = nodes.find(
-          (node) =>
-            x >= node.x - radiusX &&
-            x <= node.x + radiusX &&
-            y >= node.y - radiusY &&
-            y <= node.y + radiusY);                
-      	event.preventDefault();
+          (node) => x >= node.x - radiusX && x <= node.x + radiusX &&
+                    y >= node.y - radiusY && y <= node.y + radiusY);                
+        event.preventDefault();
         const currentTime = new Date().getTime();
         const tapLength = currentTime - lastTouchTime;
         lastTouchTime = currentTime;
@@ -285,92 +290,78 @@
             hiddenInput.value=node.label;
             redraw();drag=1
           } else {
-            pan=true;
-            drag=1;
-            }}
-        lastx=x;lasty=y;
-      }
+            pan=true;drag=1;}}
+        lastx=x;lasty=y;}
 
       function handlePointerMove(event) {
         event.preventDefault();
         for (var i = 0; i < evCache.length; i++) {
           if (event.pointerId === evCache[i].pointerId) {
-            evCache[i] = event;}
-            }
+            evCache[i] = event;}}
         if (evCache.length > 1)  {
           drag=0;
           var curDiff = Math.sqrt(Math.pow(evCache[1].clientX - evCache[0].clientX, 2) + Math.pow(evCache[1].clientY - evCache[0].clientY, 2));
           const oldscale=scale
           if (prevDiff > 0) {scale += 0.01*(curDiff-prevDiff);};
-          if (scale < 0) {scale=oldscale;};
+          if (scale < 0) {scale=oldscale;}; pan=1;
           moveNode(0 ,(canvas.width*0.5*oldscale/scale-canvas.width*0.5)/oldscale,
             (canvas.height*0.5*oldscale/scale-canvas.height*0.5)/oldscale);
           prevDiff = curDiff;
           zoomSlider.value = scale;
           event=evCache[0];
-          redraw();
-          }
+          redraw();}
         else if (drag) {
           if (selectedNodeIndex == -1) {return;}
           const rect = canvas.getBoundingClientRect();
-          const x = (event.clientX - rect.left)/scale;
-          const y = (event.clientY - rect.top)/scale;
-          const dx = x - lastx;
-          const dy = y - lasty;
+          const x = (event.clientX - rect.left)/scale;const y = (event.clientY - rect.top)/scale;
+          const dx = x - lastx;const dy = y - lasty;
           if (pan ==false) {
           moveNode(selectedNodeIndex , dx, dy);
           hiddenInput.blur();}
           else {moveNode(0 , dx, dy);}
           lastx=x;lasty=y;
-          redraw();
-          }
-        
-        }
+          redraw();}}
 
       function moveNode(index, dx, dy) {
-        nodes[index].x += dx;
-        nodes[index].y += dy;
-        nodes[index].children.forEach((childIndex) => {
-          moveNode(childIndex, dx, dy);
-        });}
+        nodes[index].x += dx;nodes[index].y += dy;
+        if (index!=0 || pan==1) {nodes[index].children.forEach((childIndex) => {moveNode(childIndex, dx, dy);});}}
       
-      function deleteSelectedNode(event) {
+      function cutSelectedNode(event) {
+        menuupdate(0);
         if (selectedNodeIndex === 0) {
           selectedNodeIndex = -1;
           nodes.splice(0);
         } else { 
-          torm=[];        
+          subtreeindices=[]; //list of nodes to remove        
           const prentNodeIndex = nodes.findIndex((prent) => prent.children.includes(selectedNodeIndex));          
           const nodeChildIndex = nodes[prentNodeIndex].children.indexOf(selectedNodeIndex);
-          console.log('before nodes:', nodes);
-          deleteSubtree(selectedNodeIndex); //get array of torm
-          torm.push(selectedNodeIndex)
-          torm.sort((a, b) => b - a);
-          for (var i = 0; i < torm.length; i++) {
-                nodes.splice(torm[i], 1);
+          findSubtree(selectedNodeIndex); //get array of subtreeindices
+          subtreeindices.push(selectedNodeIndex)
+          subtreeindices.sort((a, b) => b - a);
+          for (var i = 0; i < subtreeindices.length; i++) {
+                nodes.splice(subtreeindices[i], 1);
                 nodes.forEach((node) => {
                   for (var j = 0; j < node.children.length; j++) {
-                    if (node.children[j] > torm[i]) {
+                    if (node.children[j] > subtreeindices[i]) {
                       node.children[j]--;}}
                 });}
           nodes[prentNodeIndex].children.splice(nodeChildIndex, 1);
           selectedNodeIndex = prentNodeIndex;}           
           redraw();}
 
-      function deleteSubtree(index) {
+      function findSubtree(index) {
         nodes[index].children.forEach((childIndex) => {
-          torm.push(childIndex);
-          deleteSubtree(childIndex);});}
+          subtreeindices.push(childIndex);
+          findSubtree(childIndex);});}
           
       function handlePointerUp(event) {
-        event.preventDefault();
-        pan=0;
+        event.preventDefault();pan=0;
         if (evCache.length < 2) {prevDiff = -1;drag=0;};
         for (var i = 0; i < evCache.length; i++) {
           if (evCache[i].pointerId == event.pointerId) {
-            evCache.splice(i, 1);}
-            }
-        }
+            evCache.splice(i, 1);}}
+        evCache=[]}//stops various ui bugs
+            
       function handleKeys(event) {if (selectedNodeIndex !== -1) {nodes[selectedNodeIndex].label = hiddenInput.value;redraw();}}   
       canvas.addEventListener("pointerdown", handlePointerDown);
       canvas.addEventListener("pointermove", handlePointerMove);
@@ -378,10 +369,10 @@
       canvas.addEventListener("mouseout", handlePointerUp); 
       hiddenInput.addEventListener('keydown', handleKeys);
       hiddenInput.addEventListener("keyup", handleKeys);
-      deleteButton.addEventListener("click", deleteSelectedNode);
+      cutButton.addEventListener("click", cutSelectedNode);
       zoomSlider.addEventListener("input", function() {
         const oldscale=scale
-        scale = parseFloat(this.value);
+        scale = parseFloat(this.value); pan=1;
         moveNode(0 ,(canvas.width*0.5*oldscale/scale-canvas.width*0.5)/oldscale,
           (canvas.height*0.5*oldscale/scale-canvas.height*0.5)/oldscale);
         redraw();}); 
@@ -391,11 +382,11 @@
            const oldscale=scale
            if (delta === 1) {scale *= 1.05;}
            else if (delta === -1) {scale /= 1.05;}
+           pan=1;
            moveNode(0 ,(canvas.width*0.5*oldscale/scale-canvas.width*0.5)/oldscale,
               (canvas.height*0.5*oldscale/scale-canvas.height*0.5)/oldscale);
            zoomSlider.value = scale;
            redraw();});
-        
     </script>
   </body>
 </html>
