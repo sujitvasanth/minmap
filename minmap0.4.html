@@ -40,7 +40,7 @@
       const authenticateButton = document.getElementById("authenticate-button");
       const urlParams = new URLSearchParams(window.location.hash.substring(1));
       const accessToken = urlParams.get("access_token"); if (!accessToken) {saveButton.disabled = true;loadButton.disabled = true;}
-      var nodes = [];let selectedNodeIndex = -1; var subtreeindices=[];nodesclipboard=[];
+      var nodes = [];let selectedNodeIndex = -1; var subtreeindices=[];var nodesclipboard=[];
       const radiusX = 80;const radiusY = 30;const cornerRadius = 18;
       let lastTouchTime = 0;var lastx=0;var lasty=0;let drag = 0;var pan = false
       let scale=1.0;var prevDiff = -1;var evCache = new Array(); //for pinch zoom and pointer touch cache
@@ -56,7 +56,7 @@
       var length = 25;var x = canvas.width/2;var y = canvas.height/6+70;
       context.moveTo(x - length/2, y);context.lineTo(x + length/2, y);
       context.moveTo(x, y - length/2);context.lineTo(x, y + length/2);context.stroke();
-      context.strokeStyle = "black";
+      context.strokeStyle = "black";context.lineWidth = 1;
       
       optionsButton.addEventListener("click", function() {
         const left = optionsButton.style.left; const top = optionsButton.style.top;
@@ -66,10 +66,20 @@
         if (cutButton.style.display=="none") {menuupdate(1);} else {menuupdate(0);}
       });
             
-      copyButton.addEventListener("click", cutSelectedNode);
-        
       pasteButton.addEventListener("click", function() {
-        menuupdate(0)});
+        if (selectedNodeIndex !== -1) {
+          nodes[selectedNodeIndex].children.push(nodes.length);}//if not root node add index of the next node to its parent's list of childnren
+        for (var i = 0; i < nodesclipboard.length; i++) {//update all the childrens indices now we know the what clipboard basenode index is
+            for (var j = 0; j < nodesclipboard[i].children.length; j++) {
+                  var oldIndex = nodesclipboard[i].children[j];
+                  var newIndex = oldIndex+nodes.length;
+                  nodesclipboard[i].children[j] = newIndex;}}  
+        for (var i = 0; i < nodesclipboard.length; i++) {//add the amended nodes to the nodes array
+            var nodeCopy = JSON.parse(JSON.stringify(nodesclipboard[i])); //create a deep copy of the node
+            nodes.push(nodeCopy);}
+        menuupdate(0);
+        redraw();
+        })              
       
       function menuupdate(state) {
         var display="none"; if (state==1) {display="block"} 
@@ -234,13 +244,13 @@
           context.beginPath();context.moveTo(cursorX, cursorY);
           context.lineTo(cursorX, cursorY + lineHeight*scale* generationScale);
           context.stroke();}
-      }
+      
 
-      function countIterations(index, iteration) {
-        if (index === 0) return iteration;
-        const parentIndex = nodes.findIndex((node) => node.children.includes(index));
-        return countIterations(parentIndex, iteration + 1);}
-          
+            function countIterations(index, iteration) {
+              if (index === 0) return iteration;
+              const parentIndex = nodes.findIndex((node) => node.children.includes(index));
+              return countIterations(parentIndex, iteration + 1);}
+          }
       function addNode(x, y) {
         const node = { x, y, label: "", children: [] };
         if (selectedNodeIndex !== -1) {nodes[selectedNodeIndex].children.push(nodes.length);}
@@ -250,7 +260,7 @@
 
       function redraw() {
         context.clearRect(0, 0, canvas.width, canvas.height);
-        if (selectedNodeIndex === -1) {optionsButton.style.display = "none";return;}
+        if (selectedNodeIndex == -1) {optionsButton.style.display = "none";return;}
         nodes.forEach((node, index) => {
           node.children.forEach((childIndex) => {
             const child = nodes[childIndex];
@@ -326,38 +336,39 @@
         if (index!=0 || pan==1) {nodes[index].children.forEach((childIndex) => {moveNode(childIndex, dx, dy);});}}
       
       function cutSelectedNode(event) {
-        menuupdate(0);
-        if (selectedNodeIndex === 0) {
-          nodesclipboard=nodes;selectedNodeIndex = -1;nodes.splice(0);
+        if (selectedNodeIndex == 0) {
+          nodesclipboard = nodes.slice().map(obj => Object.assign({}, obj));//make deep copy
+          if (event.target.textContent ===" Cut ") {
+          nodes.splice(0);selectedNodeIndex = -1;}
         } else { 
-          subtreeindices=[]; //list of nodes to remove        
+          subtreeindices.splice(0); //list of nodes to remove        
           findSubtree(selectedNodeIndex); //get array of subtreeindices
-          subtreeindices.push(selectedNodeIndex)
+          subtreeindices.push(selectedNodeIndex);
           subtreeindices.sort((a, b) => b - a);
-          
+
           nodesclipboard=[];//copy the subtree nodes to clipboard and renumber the children
           for (var i = subtreeindices.length - 1; i >= 0; i--) {
-            nodesclipboard.push(nodes[subtreeindices[i]]);}
+            var nodeCopy = JSON.parse(JSON.stringify(nodes[subtreeindices[i]])); //create a deep copy of the node
+            nodesclipboard.push(nodeCopy);}
           for (var i = 0; i < nodesclipboard.length; i++) {
             for (var j = 0; j < nodesclipboard[i].children.length; j++) {
                   var oldIndex = nodesclipboard[i].children[j];
                   var newIndex = subtreeindices.length -1 - subtreeindices.indexOf(oldIndex);
                   nodesclipboard[i].children[j] = newIndex;}}
           
-          if (event.target.textContent==" Cut ") {//delete the subtree nodes and renumber the children
+          if (event.target.textContent ===" Cut ") {//delete the subtree nodes and renumber the children
             const prentNodeIndex = nodes.findIndex((prent) => prent.children.includes(selectedNodeIndex));          
             const nodeChildIndex = nodes[prentNodeIndex].children.indexOf(selectedNodeIndex);
+            nodes[prentNodeIndex].children.splice(nodeChildIndex, 1);
+            selectedNodeIndex = prentNodeIndex;
             for (var i = 0; i < subtreeindices.length; i++) {
                   nodes.splice(subtreeindices[i], 1);
                   nodes.forEach((node) => {
                     for (var j = 0; j < node.children.length; j++) {
                       if (node.children[j] > subtreeindices[i]) {
-                        node.children[j]--;}}
-                  });}
-            nodes[prentNodeIndex].children.splice(nodeChildIndex, 1);
-            selectedNodeIndex = prentNodeIndex;}}           
-          
-          redraw();}
+                        node.children[j]--;}}});}}}           
+          redraw();
+          menuupdate(0);}
 
       function findSubtree(index) {
         nodes[index].children.forEach((childIndex) => {
@@ -380,6 +391,7 @@
       hiddenInput.addEventListener('keydown', handleKeys);
       hiddenInput.addEventListener("keyup", handleKeys);
       cutButton.addEventListener("click", cutSelectedNode);
+      copyButton.addEventListener("click", cutSelectedNode);
       zoomSlider.addEventListener("input", function() {
         const oldscale=scale
         scale = parseFloat(this.value); pan=1;
