@@ -41,7 +41,7 @@
       const urlParams = new URLSearchParams(window.location.hash.substring(1));
       const accessToken = urlParams.get("access_token"); if (!accessToken) {saveButton.disabled = true;loadButton.disabled = true;}
       var nodes = [];let selectedNodeIndex = -1; var subtreeindices=[];var nodesclipboard=[];
-      const radiusX = 80;const radiusY = 30;const cornerRadius = 18;
+      const radiusX = 80;const radiusY = 30;const cornerRadius = 18; var name="";
       let lastTouchTime = 0;var lastx=0;var lasty=0;let drag = 0;var pan = false
       let scale=1.0;var prevDiff = -1;var evCache = new Array(); //for pinch zoom and pointer touch cache
             
@@ -87,7 +87,10 @@
         pasteButton.style.display = display;}
       
       saveLocalButton.addEventListener("click", function() {
-        localStorage.setItem("nodes", JSON.stringify(nodes));});    
+        if (nodes==[]) {alert("Mindmap is blank so not saved");}     
+        else { localStorage.setItem("nodes", JSON.stringify(nodes))
+                 .then(function() {alert("File was successfully saved!");})
+                 .catch(function() {alert("Error saving file!");});}});    
 
       loadLocalButton.addEventListener("click", function() {
         const nodesStr = localStorage.getItem("nodes");
@@ -97,7 +100,7 @@
           redraw();}});
 
       saveButton.addEventListener("click", function() {
-        const fileName = prompt("Please enter a filename for your Mind Map:", "mindmap");
+        const fileName = prompt("Please enter a filename for your Mind Map:", name);
         if (fileName != null) {
           const data = JSON.stringify(nodes);
           const blob = new Blob([data], { type: "application/json" });
@@ -130,6 +133,7 @@
             selectButton.addEventListener('click', () => {
               const selected = popupList.querySelector('option:checked');
               if (selected) {
+                name=selected.value.replace('.minmap', '');
                 dropbox.filesDownload({ path: selected.value })
                   .then(function(response) {
                     const blob = new Blob([response.fileBlob], { type: "application/json" });
@@ -161,10 +165,10 @@
         context.beginPath();
         var nodelabel = node.label
         const generation = countIterations(nodes.indexOf(node), 0);
-        const generationScale = Math.pow(0.9, generation);        
+        const generationScale = Math.pow(0.94, generation);        
         const rectWidth = radiusX * 2 * scale * generationScale;
         const rectHeight = radiusY * 2 * scale * generationScale;
-        const colors = ["#e0b6c1","#bfe0ef","#c3e6cb",   "#ffe4c4",  "#ffdab9"];
+        const colors = ["#e9b6c1","#bfe0f3","#c3e6cb","#ffe4c4",  "#ba94d1", "#73a9ad","#b8b2a6", ];
         
         function drawRoundedRect(x, y, width, height) {
           context.beginPath();context.moveTo(x + cornerRadius*scale*generationScale, y);
