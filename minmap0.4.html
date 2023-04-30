@@ -27,7 +27,7 @@
       const radiusX = 80;const radiusY = 30;const cornerRadius = 18; var name="";
       let lastTouchTime = 0;var lastx=0;var lasty=0;let drag = 0;var pan = false; var lineHeight = 17
       let scale=1.0;var prevDiff = -1;var evCache = new Array(); //for pinch zoom and pointer touch cache
-      const colors = ["#e9b6c1","#bfe0f3","#c3e6cb","#ffe4c4",  "#ba94d1", "#73a9ad","#b8b2a6"];
+      const colors = ["#e9b6c1","#bfe0f3","#c3e6cb","#ffe4c4",  "#ba94d1", "#73a9ad","#b8b2a6", "#ffffff"];
       
       window.addEventListener("resize", displayWindowSize);
       function displayWindowSize() {canvas.width = window.innerWidth -17;canvas.height = window.innerHeight -22;redraw()};
@@ -173,7 +173,7 @@
           context.closePath();}
         
         drawRoundedRect(node.x * scale -  maxLabelWidth / 2, y2,  maxLabelWidth, (lines.length+1)*lineHeight*scale*generationScale);//draw the node outline
-        context.fillStyle = colors[generation];context.fill();context.stroke();
+        context.fillStyle = colors[generation % colors.length];context.fill();context.stroke();
         
         context.textAlign = "center";context.fillStyle = "black";//write the node text
         const y = (node.y - (lineHeight * (lines.length-1.5)) / 2)*scale;
@@ -363,5 +363,5 @@
            moveNode(0 ,(canvas.width*0.5*oldscale/scale-canvas.width*0.5)/oldscale,
               (canvas.height*0.5*oldscale/scale-canvas.height*0.5)/oldscale);
            zoomSlider.value = scale;
-           redraw();});
+           redraw();}, {passive: true});
     </script></body></html>
