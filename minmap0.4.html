@@ -26,6 +26,7 @@
       var nodes = [];let selectedNodeIndex = -1; var subtreeindices=[];var nodesclipboard=[];
       const radiusX = 80;const radiusY = 30;const cornerRadius = 18; var name="";
       let lastTouchTime = 0;var lastx=0;var lasty=0;let drag = 0;var pan = false; var lineHeight = 17
+      var panx=0; var pany=0;
       let scale=1.0;var prevDiff = -1;var evCache = new Array(); //for pinch zoom and pointer touch cache
       const colors = ["#e9b6c1","#bfe0f3","#c3e6cb","#ffe4c4",  "#ba94d1", "#73a9ad","#b8b2a6", "#ffffff"];
       
@@ -159,7 +160,7 @@
           const lineWidth = context.measureText(lines[i]).width;
           if (lineWidth > maxLabelWidth) {maxLabelWidth = lineWidth;}}
         maxLabelWidth += pad;
-        const y2 = (node.y - (lineHeight*generationScale * (lines.length+1)) / 2)*scale;
+        const y2 = ((node.y+pany) - (lineHeight*generationScale * (lines.length+1)) / 2)*scale;
 
         function drawRoundedRect(x, y, width, height) {
           context.beginPath();context.moveTo(x + cornerRadius*scale*generationScale, y);
@@ -172,12 +173,12 @@
           context.lineTo(x, y + cornerRadius*scale*generationScale); context.quadraticCurveTo(x, y, x + cornerRadius*scale*generationScale, y);
           context.closePath();}
         
-        drawRoundedRect(node.x * scale -  maxLabelWidth / 2, y2,  maxLabelWidth, (lines.length+1)*lineHeight*scale*generationScale);//draw the node outline
+        drawRoundedRect((node.x+panx) * scale -  maxLabelWidth / 2, y2,  maxLabelWidth, (lines.length+1)*lineHeight*scale*generationScale);//draw the node outline
         context.fillStyle = colors[generation % colors.length];context.fill();context.stroke();
         
         context.textAlign = "center";context.fillStyle = "black";//write the node text
-        const y = (node.y - (lineHeight * (lines.length-1.5)) / 2)*scale;
-        lines.forEach((line, i) => {context.fillText(line, node.x*scale, y + i * lineHeight*scale);});
+        const y = ((node.y+pany) - (lineHeight * (lines.length-1.5)) / 2)*scale;
+        lines.forEach((line, i) => {context.fillText(line, (node.x+panx)*scale, y + i * lineHeight*scale);});
         
         if (nodes.indexOf(node) === selectedNodeIndex && drag==0){//place the cursor        
           const cursorPos = hiddenInput.selectionStart;
@@ -186,10 +187,10 @@
           const cursorline = linesBeforeCursor.length-1;
           const lineOfCursor = linesBeforeCursor[cursorline]
           const totallines = lines.length-1
-          const cursorY = (node.y + (lineHeight *( ((totallines-1) / 2)-(totallines-cursorline)) ) )* scale;
+          const cursorY = ((node.y+pany) + (lineHeight *( ((totallines-1) / 2)-(totallines-cursorline)) ) )* scale;
           const wholeLabelWidth = context.measureText(lines[cursorline]).width;
           const labelBeforeCursorWidth = context.measureText(lineOfCursor).width;
-          const cursorX = (node.x)* scale +labelBeforeCursorWidth - wholeLabelWidth/2;
+          const cursorX = (node.x+panx)* scale +labelBeforeCursorWidth - wholeLabelWidth/2;
           context.beginPath();context.moveTo(cursorX, cursorY);
           context.lineTo(cursorX, cursorY + lineHeight*scale* generationScale);
           context.stroke();}
@@ -198,13 +199,13 @@
           context.lineWidth = 1;
           context.setLineDash([8*scale, 11*scale]);
           context.beginPath();
-          drawRoundedRect(node.x * scale - maxLabelWidth / 2 - 5, y2 - 5, (maxLabelWidth + 10), ((lines.length+1)*lineHeight*scale*generationScale) + 10);
+          drawRoundedRect((node.x+panx) * scale - maxLabelWidth / 2 - 5, y2 - 5, (maxLabelWidth + 10), ((lines.length+1)*lineHeight*scale*generationScale) + 10);
           context.stroke();
           context.beginPath();
           context.lineWidth = 1;
           context.setLineDash([]);
-          const optionsButtonX = (node.x*scale) + maxLabelWidth/2;  
-          const optionsButtonY = node.y*scale + (lines.length+2)*lineHeight*scale*generationScale*0.5;
+          const optionsButtonX = ((node.x+panx)*scale) + maxLabelWidth/2;  
+          const optionsButtonY = (node.y+pany)*scale + (lines.length+2)*lineHeight*scale*generationScale*0.5;
           if (optionsButtonX>canvas.width-50) {
             optionsButton.style.display = "none";
             menuupdate(0);
@@ -237,8 +238,8 @@
           node.children.forEach((childIndex) => {
             const child = nodes[childIndex];
             context.beginPath(); //draw the connector
-            context.moveTo(node.x*scale, node.y*scale);
-            context.lineTo(child.x*scale, child.y*scale);
+            context.moveTo((node.x+panx)*scale, (node.y+pany)*scale);
+            context.lineTo((child.x+panx)*scale, (child.y+pany)*scale);
             context.stroke();});
             drawNode(node);})}; //draw the node
 
@@ -248,8 +249,8 @@
           if (event.pointerId === evCache[i].pointerId) {
             evCache[i] = event;}}
         const rect = canvas.getBoundingClientRect();
-        const x = (event.clientX - rect.left)/scale;
-        const y = (event.clientY - rect.top)/scale;
+        const x = -panx + (event.clientX - rect.left)/scale;
+        const y = -pany + (event.clientY - rect.top)/scale;
         const node = nodes.find(
           (node) => x >= node.x - radiusX && x <= node.x + radiusX &&
                     y >= node.y - radiusY && y <= node.y + radiusY);                
@@ -269,10 +270,10 @@
             pan=false
             selectedNodeIndex = nodes.indexOf(node);   
             hiddenInput.value=node.label;
-            redraw();drag=1
-          } else {
-            pan=true;drag=1;}}
-        lastx=x;lasty=y;}
+            redraw();drag=1;
+            lastx=x;lasty=y;}
+          else {if (pan==false) {pan=true;drag=1;lastx=x;lasty=y;}}}
+        }
 
       function handlePointerMove(event) {
         event.preventDefault();
@@ -285,8 +286,8 @@
           const oldscale=scale
           if (prevDiff > 0) {scale += 0.01*(curDiff-prevDiff);};
           if (scale < 0) {scale=oldscale;}; pan=1;
-          moveNode(0 ,(canvas.width*0.5*oldscale/scale-canvas.width*0.5)/oldscale,
-            (canvas.height*0.5*oldscale/scale-canvas.height*0.5)/oldscale);
+           panx += (canvas.width*0.5*oldscale/scale-canvas.width*0.5)/oldscale;
+           pany += (canvas.height*0.5*oldscale/scale-canvas.height*0.5)/oldscale;
           prevDiff = curDiff;
           zoomSlider.value = scale;
           event=evCache[0];
@@ -294,18 +295,19 @@
         else if (drag) {
           if (selectedNodeIndex == -1) {return;}
           const rect = canvas.getBoundingClientRect();
-          const x = (event.clientX - rect.left)/scale;const y = (event.clientY - rect.top)/scale;
+          const x = -panx + ((event.clientX - rect.left)/scale);
+          const y = -pany + ((event.clientY - rect.top)/scale);
           const dx = x - lastx;const dy = y - lasty;
           if (pan ==false) {
-          moveNode(selectedNodeIndex , dx, dy);
-          hiddenInput.blur();}
-          else {moveNode(0 , dx, dy);}
-          lastx=x;lasty=y;
-          redraw();}}
+            moveNode(selectedNodeIndex , dx, dy);
+            hiddenInput.blur();
+            lastx=x;lasty=y;}
+          else {panx += dx;pany += dy;}
+        redraw();}}
 
-      function moveNode(index, dx, dy) {
-        nodes[index].x += dx;nodes[index].y += dy;
-        if (index!=0 || pan==1) {nodes[index].children.forEach((childIndex) => {moveNode(childIndex, dx, dy);});}}
+      function moveNode(index, ddx, ddy) {
+        nodes[index].x += ddx;nodes[index].y += ddy;
+        nodes[index].children.forEach((childIndex) => {moveNode(childIndex, ddx, ddy);});}
       
       function cutSelectedNode(event) { 
         subtreeindices.splice(0); //initialise list of nodes to remove        
@@ -350,18 +352,17 @@
       zoomSlider.addEventListener("input", function() {
         const oldscale=scale
         scale = parseFloat(this.value); pan=1;
-        moveNode(0 ,(canvas.width*0.5*oldscale/scale-canvas.width*0.5)/oldscale,
-          (canvas.height*0.5*oldscale/scale-canvas.height*0.5)/oldscale);
+        panx += (canvas.width*0.5*oldscale/scale-canvas.width*0.5)/oldscale;
+        pany += (canvas.height*0.5*oldscale/scale-canvas.height*0.5)/oldscale;
         redraw();}); 
       canvas.addEventListener('wheel', function(event) {
-           event.preventDefault();
            const delta = Math.sign(event.deltaY);
            const oldscale=scale
            if (delta === 1) {scale *= 1.05;}
            else if (delta === -1) {scale /= 1.05;}
            pan=1;
-           moveNode(0 ,(canvas.width*0.5*oldscale/scale-canvas.width*0.5)/oldscale,
-              (canvas.height*0.5*oldscale/scale-canvas.height*0.5)/oldscale);
+           panx += (canvas.width*0.5*oldscale/scale-canvas.width*0.5)/oldscale;
+           pany += (canvas.height*0.5*oldscale/scale-canvas.height*0.5)/oldscale;
            zoomSlider.value = scale;
            redraw();}, {passive: true});
     </script></body></html>
