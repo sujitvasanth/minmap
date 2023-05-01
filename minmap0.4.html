@@ -31,7 +31,8 @@
       const colors = ["#e9b6c1","#bfe0f3","#c3e6cb","#ffe4c4",  "#ba94d1", "#73a9ad","#b8b2a6", "#ffffff"];
       
       window.addEventListener("resize", displayWindowSize);
-      function displayWindowSize() {canvas.width = window.innerWidth -17;canvas.height = window.innerHeight -22;redraw()};
+      function displayWindowSize() {canvas.width = window.innerWidth -17;canvas.height = window.innerHeight -22;
+      zoomextents();redraw()};
             
       context.font = "30px Arial";context.fillStyle = "black";context.textAlign = "center";
       context.fillText("Minmap", canvas.width/2, canvas.height/6);
@@ -81,7 +82,9 @@
 
       loadLocalButton.addEventListener("click", function() {
         const nodesStr = localStorage.getItem("nodes");
-        if (nodesStr) {nodes = JSON.parse(nodesStr);selectedNodeIndex = 0;redraw();}});
+        if (nodesStr) {nodes = JSON.parse(nodesStr);selectedNodeIndex = 0;
+        zoomextents();
+        redraw();}});
 
       saveButton.addEventListener("click", function() {
         const fileName = prompt("Please enter a filename for your Mind Map:", name);
@@ -124,7 +127,7 @@
                     const reader = new FileReader();
                     reader.onload = function(event) {
                       const data = JSON.parse(event.target.result);
-                      nodes = data;selectedNodeIndex = 0;redraw();};
+                      nodes = data;selectedNodeIndex = 0;zoomextents();redraw();};
                     reader.readAsText(blob);})
                   .catch(({ message }) => alert(`Error loading file from Dropbox: ${message}`));
                 document.body.removeChild(popup);
@@ -242,6 +245,22 @@
             context.lineTo((child.x+panx)*scale, (child.y+pany)*scale);
             context.stroke();});
             drawNode(node);})}; //draw the node
+            
+      function zoomextents() {
+        const [minX, maxX] = calculateRange(nodes, 'x');
+        const [minY, maxY] = calculateRange(nodes, 'y');
+        const rangex=maxX-minX;
+        const rangey=maxY-minY;
+        scale = 0.7*Math.min(canvas.width/rangex,canvas.height/rangey);
+        panx= -minX +((canvas.width/scale-rangex)/2);
+        pany= -minY +((canvas.height/scale -rangey)/2);
+        zoomSlider.value = scale;
+        redraw();
+        
+        function calculateRange(arr, prop) {
+          const values = arr.map((node) => node[prop]);
+          const min = Math.min(...values);const max = Math.max(...values);
+          return [min, max];}}
 
       function handlePointerDown(event) {
         evCache.push(event);
