@@ -248,6 +248,10 @@ var lineHeight = 17;
             drawNode(node);})}; //draw the node
             
       function zoomextents() {
+        if (nodes.length==1) {scale=1;
+           panx=canvas.width/2-nodes[0].x;
+           pany=canvas.height/2-nodes[0].y;}
+        else{
         const [minX, maxX] = calculateRange(nodes, 'x');
         const [minY, maxY] = calculateRange(nodes, 'y');
         const rangex=maxX-minX;
@@ -255,7 +259,7 @@ var lineHeight = 17;
         scale = 0.7*Math.min(canvas.width/rangex,canvas.height/rangey);
         panx= -minX +((canvas.width/scale-rangex)/2);
         pany= -minY +((canvas.height/scale -rangey)/2);
-        zoomSlider.value = scale;
+        zoomSlider.value = scale;}
         redraw();
         
         function calculateRange(arr, prop) {
