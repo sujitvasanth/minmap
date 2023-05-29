@@ -21,6 +21,7 @@ const saveButton = createElement('button', { id: 'save-button', style: `position
 const loadButton = createElement('button', { id: 'load-button', style: `position: absolute; top: ${multiplier * 15}px; right: ${multiplier * 17}px; width: 10ch; font-size: ${multiplier * 17}px;` }, 'LoadCloud');
 const loadLocalButton = createElement('button', { id: 'loadLocal-button', style: `position: absolute; top: ${multiplier * 45}px; right: ${multiplier * 17}px; width: 10ch; font-size: ${multiplier * 17}px;` }, 'LoadLocal');
 const saveLocalButton = createElement('button', { id: 'saveLocal-button', style: `position: absolute; top: ${multiplier * 45}px; right: ${multiplier * 120}px; width: 10ch; font-size: ${multiplier * 17}px;` }, 'SaveLocal');
+const delLocalButton = createElement('button', { id: 'delLocal-button', style: `position: absolute; top: ${multiplier * 45}px; right: ${multiplier * 220}px; width: 12ch; font-size: ${multiplier * 17}px;` }, 'DeleteLocal');
 var lineHeight = 17;
       const context = canvas.getContext("2d");  
       const urlParams = new URLSearchParams(window.location.hash.substring(1));
@@ -74,27 +75,22 @@ var lineHeight = 17;
         pasteButton.style.display = display;}
       
       // Local Save
-      saveLocalButton.addEventListener("click", function() {
+      saveLocalButton.addEventListener("click", function () {
         if (nodes.length === 0) {
           alert("Mindmap is blank so not saved");
         } else {
           try {
             const fileName = prompt("Please enter a filename for your Mind Map:", name);
-            if (fileName) {
-              const file = {
-                name: fileName,
-                nodes: nodes
-              };
+            if (fileName) {const file = {name: fileName, nodes: nodes,};
               let files = JSON.parse(localStorage.getItem("files")) || [];
-              files.push(file);
+              // Check if the filename already exists in the files list
+              const existingFileIndex = files.findIndex((existingFile) => existingFile.name === fileName);
+              if (existingFileIndex !== -1) {files[existingFileIndex] = file;}
+              else {files.push(file);}
               localStorage.setItem("files", JSON.stringify(files));
               alert("File was successfully saved!");
-            } else {
-              alert("Invalid file name");
-            }
-          } catch (e) {
-            alert("Error saving file: " + e);
-          }
+            } else {alert("Invalid file name");}
+          } catch (e) {alert("Error saving file: " + e);}
         }
       });
 
@@ -113,17 +109,9 @@ var lineHeight = 17;
               .catch(function(error) {alert('Error saving file to Dropbox: ' + error.message);});};
           fileReader.readAsArrayBuffer(blob);}});
 
-      // Local Load
-      loadLocalButton.addEventListener("click", function() {
-        const files = JSON.parse(localStorage.getItem("files")) || [];
-        if (files.length === 0) {
-          alert("No files found");
-          return;
-        }
-
+      function createPopup(action, files, onFileSelect) {
         const popup = document.createElement("div");
         popup.style = `position: absolute; z-index: 1; background-color: #007bee; border: 1px solid #ddd; border-radius: 5px; padding: 5px; width: 50%; height: 25%; left: 50%; top: 50%; transform: translate(-50%, -50%);`;
-
         const popupList = document.createElement("select");
         popupList.style = `padding: 15px; width: 100%; background-color: #fff; color: #000; font-size: 18px; border: 1px solid #ccc;`;
         popupList.size = 5;
@@ -137,17 +125,13 @@ var lineHeight = 17;
         );
 
         const selectButton = document.createElement("button");
-        selectButton.textContent = "Open";
+        selectButton.textContent = action;
         selectButton.style = `margin-right: 10px; font-size: 18px;`;
         selectButton.addEventListener("click", () => {
           const selectedOption = popupList.querySelector("option:checked");
           if (selectedOption) {
             const selectedIndex = selectedOption.value;
-            const selectedFile = files[selectedIndex];
-            nodes = selectedFile.nodes;
-            selectedNodeIndex = 0;
-            zoomextents();
-            redraw();
+            onFileSelect(files[selectedIndex]);
             document.body.removeChild(popup);
           } else {
             alert("Please select a file.");
@@ -161,57 +145,50 @@ var lineHeight = 17;
 
         popup.append(popupList, selectButton, cancelButton);
         document.body.appendChild(popup);
+      }
+
+      // Local Load
+      loadLocalButton.addEventListener("click", function () {
+        const files = JSON.parse(localStorage.getItem("files")) || [];
+        if (files.length === 0) {alert("No files found");return;}
+        createPopup("Open", files, (selectedFile) => {nodes = selectedFile.nodes;selectedNodeIndex = 0;zoomextents();redraw();});
       });
 
+      // Local Delete
+      delLocalButton.addEventListener("click", function () {
+        const files = JSON.parse(localStorage.getItem("files")) || [];
+        if (files.length === 0) {alert("No files found");return;}
+        createPopup("Delete", files, (selectedFile) => {
+            const updatedFiles = files.filter(file => file !== selectedFile);
+            localStorage.setItem("files", JSON.stringify(updatedFiles));});
+       });
 
-      //Cloud Load
-      loadButton.addEventListener('click', () => {
+      //CloudLoad
+      loadButton.addEventListener("click", () => {
         const dropbox = new Dropbox.Dropbox({ accessToken });
-        dropbox.filesListFolder({ path: '/Minmap' })
+        dropbox.filesListFolder({ path: "/Minmap" })
           .then(({ entries }) => {
-            const minmapFiles = entries.filter(file => file.name.endsWith('.minmap'));
-            const popup = document.createElement('div');
-            popup.style = `position: absolute; z-index: 1; background-color: #007bee; border: 1px solid #ddd; border-radius: 5px; padding: 5px; width: 50%; height: 25%; left: 50%; top: 50%; transform: translate(-50%, -50%);`;
-            const popupList = document.createElement('select');
-            popupList.style = `padding: 15px; width: 100%; background-color: #fff; color: #000; font-size: 18px; border: 1px solid #ccc;`;
-            popupList.size = 5;
-            popupList.append(...minmapFiles.map(({ path_lower, name }) => {
-              const option = document.createElement('option');
-              option.value = path_lower;
-              option.textContent = name.slice(0, -7);
-              return option;}));
-            const selectButton = document.createElement('button');
-            selectButton.textContent = 'Open';
-            selectButton.style = `margin-right: 10px; font-size: 18px;`;
-            selectButton.addEventListener('click', () => {
-              const selected = popupList.querySelector('option:checked');
-              if (selected) {
-                name = selected.textContent;
-                dropbox.filesDownload({ path: selected.value })
-                  .then(function(response) {
-                    const blob = new Blob([response.fileBlob], { type: "application/json" });
-                    const reader = new FileReader();
-                    reader.onload = function(event) {
-                      const data = JSON.parse(event.target.result);
-                      nodes = data;selectedNodeIndex = 0;zoomextents();redraw();};
-                    reader.readAsText(blob);})
-                  .catch(({ message }) => alert(`Error loading file from Dropbox: ${message}`));
-                document.body.removeChild(popup);
-              } else {alert('Please select a file.');}});
-            const cancelButton = document.createElement('button');
-            cancelButton.textContent = 'Cancel';
-            cancelButton.style = `font-size: 18px;`;
-            cancelButton.addEventListener('click', () => document.body.removeChild(popup));
-            popup.append(popupList, selectButton, cancelButton);
-            document.body.appendChild(popup);})
-          .catch(({ message }) => alert(`Error listing files in Dropbox: ${message}`));});
-
-      authenticateButton.addEventListener("click", function() {
-        const appKey = 'uyt17co0totx5rx';// Replace 'YOUR_APP_KEY' with your Dropbox app key
-        var redirectUri = 'https://minmap.vercel.app';
-        if (window.location.protocol === 'file:') {redirectUri = 'http://localhost/minmap0.4.html';}
-        let dbx = new Dropbox.Dropbox({ clientId: appKey });
-        window.location.href = dbx.getAuthenticationUrl(redirectUri);});
+            const minmapFiles = entries.filter((file) => file.name.endsWith(".minmap"));
+            createPopup("Open", minmapFiles, (selectedFile) => {
+              name = selectedFile.name.slice(0, -7);
+              dropbox.filesDownload({ path: selectedFile.path_lower })
+                .then(function (response) {
+                  const blob = new Blob([response.fileBlob], { type: "application/json" });
+                  const reader = new FileReader();
+                  reader.onload = function (event) {
+                    const data = JSON.parse(event.target.result);
+                    nodes = data;
+                    selectedNodeIndex = 0;
+                    zoomextents();
+                    redraw();
+                  };
+                  reader.readAsText(blob);
+                })
+                .catch(({ message }) => alert(`Error loading file from Dropbox: ${message}`));
+            });
+          })
+          .catch(({ message }) => alert(`Error listing files in Dropbox: ${message}`));
+      });
 
       function drawNode(node) {
         context.beginPath();
@@ -313,17 +290,14 @@ var lineHeight = 17;
             drawNode(node);})}; //draw the node
             
       function zoomextents() {
-        if (nodes.length==1) {scale=1;
-           panx=canvas.width/2-nodes[0].x;
-           pany=canvas.height/2-nodes[0].y;}
-        else{
         const [minX, maxX] = calculateRange(nodes, 'x');
         const [minY, maxY] = calculateRange(nodes, 'y');
         const rangex=maxX-minX;
         const rangey=maxY-minY;
         scale = 0.7*Math.min(canvas.width/rangex,canvas.height/rangey);
+        if (scale>2.7) {scale=2.7;}
         panx= -minX +((canvas.width/scale-rangex)/2);
-        pany= -minY +((canvas.height/scale -rangey)/2);}
+        pany= -minY +((canvas.height/scale -rangey)/2);
         zoomSlider.value = scale;
         redraw();
         
