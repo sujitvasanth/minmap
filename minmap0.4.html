@@ -73,20 +73,33 @@ var lineHeight = 17;
         cutButton.style.display = display;copyButton.style.display = display;
         pasteButton.style.display = display;}
       
+      // Local Save
       saveLocalButton.addEventListener("click", function() {
-        if (nodes.length === 0) {alert("Mindmap is blank so not saved");}     
-        else {
-          try {localStorage.setItem("nodes", JSON.stringify(nodes));
-               alert("File was successfully saved!");}
-          catch(e) {alert("Error saving file: " + e);}}
-           });    
+        if (nodes.length === 0) {
+          alert("Mindmap is blank so not saved");
+        } else {
+          try {
+            const fileName = prompt("Please enter a filename for your Mind Map:", name);
+            if (fileName) {
+              const file = {
+                name: fileName,
+                nodes: nodes
+              };
+              let files = JSON.parse(localStorage.getItem("files")) || [];
+              files.push(file);
+              localStorage.setItem("files", JSON.stringify(files));
+              alert("File was successfully saved!");
+            } else {
+              alert("Invalid file name");
+            }
+          } catch (e) {
+            alert("Error saving file: " + e);
+          }
+        }
+      });
 
-      loadLocalButton.addEventListener("click", function() {
-        const nodesStr = localStorage.getItem("nodes");
-        if (nodesStr) {nodes = JSON.parse(nodesStr);selectedNodeIndex = 0;
-        zoomextents();
-        redraw();}});
 
+      //Cloud Save
       saveButton.addEventListener("click", function() {
         const fileName = prompt("Please enter a filename for your Mind Map:", name);
         if (fileName != null) {
@@ -100,6 +113,58 @@ var lineHeight = 17;
               .catch(function(error) {alert('Error saving file to Dropbox: ' + error.message);});};
           fileReader.readAsArrayBuffer(blob);}});
 
+      // Local Load
+      loadLocalButton.addEventListener("click", function() {
+        const files = JSON.parse(localStorage.getItem("files")) || [];
+        if (files.length === 0) {
+          alert("No files found");
+          return;
+        }
+
+        const popup = document.createElement("div");
+        popup.style = `position: absolute; z-index: 1; background-color: #007bee; border: 1px solid #ddd; border-radius: 5px; padding: 5px; width: 50%; height: 25%; left: 50%; top: 50%; transform: translate(-50%, -50%);`;
+
+        const popupList = document.createElement("select");
+        popupList.style = `padding: 15px; width: 100%; background-color: #fff; color: #000; font-size: 18px; border: 1px solid #ccc;`;
+        popupList.size = 5;
+        popupList.append(
+          ...files.map((file, index) => {
+            const option = document.createElement("option");
+            option.value = index;
+            option.textContent = file.name;
+            return option;
+          })
+        );
+
+        const selectButton = document.createElement("button");
+        selectButton.textContent = "Open";
+        selectButton.style = `margin-right: 10px; font-size: 18px;`;
+        selectButton.addEventListener("click", () => {
+          const selectedOption = popupList.querySelector("option:checked");
+          if (selectedOption) {
+            const selectedIndex = selectedOption.value;
+            const selectedFile = files[selectedIndex];
+            nodes = selectedFile.nodes;
+            selectedNodeIndex = 0;
+            zoomextents();
+            redraw();
+            document.body.removeChild(popup);
+          } else {
+            alert("Please select a file.");
+          }
+        });
+
+        const cancelButton = document.createElement("button");
+        cancelButton.textContent = "Cancel";
+        cancelButton.style = `font-size: 18px;`;
+        cancelButton.addEventListener("click", () => document.body.removeChild(popup));
+
+        popup.append(popupList, selectButton, cancelButton);
+        document.body.appendChild(popup);
+      });
+
+
+      //Cloud Load
       loadButton.addEventListener('click', () => {
         const dropbox = new Dropbox.Dropbox({ accessToken });
         dropbox.filesListFolder({ path: '/Minmap' })
@@ -258,8 +323,8 @@ var lineHeight = 17;
         const rangey=maxY-minY;
         scale = 0.7*Math.min(canvas.width/rangex,canvas.height/rangey);
         panx= -minX +((canvas.width/scale-rangex)/2);
-        pany= -minY +((canvas.height/scale -rangey)/2);
-        zoomSlider.value = scale;}
+        pany= -minY +((canvas.height/scale -rangey)/2);}
+        zoomSlider.value = scale;
         redraw();
         
         function calculateRange(arr, prop) {
