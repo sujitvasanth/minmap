@@ -190,6 +190,14 @@ var lineHeight = 17;
           .catch(({ message }) => alert(`Error listing files in Dropbox: ${message}`));
       });
 
+      authenticateButton.addEventListener("click", function() {
+        const appKey = 'uyt17co0totx5rx';// Replace 'YOUR_APP_KEY' with your Dropbox app key
+        var redirectUri = 'https://minmap.vercel.app';
+        if (window.location.protocol === 'file:') {redirectUri = 'http://localhost/minmap0.4.html';}
+        let dbx = new Dropbox.Dropbox({ clientId: appKey });
+        window.location.href = dbx.getAuthenticationUrl(redirectUri);});
+
+
       function drawNode(node) {
         context.beginPath();
         var nodelabel = node.label
