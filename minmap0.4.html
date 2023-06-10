@@ -198,11 +198,10 @@ var lineHeight = 17;
             request.open('GET', 'instructions.minmap', true);
             request.onreadystatechange = function() {
                   if (request.readyState === 4 && request.status === 200) {
-                        const data = JSON.parse(request.responseText);
-                        nodes = data;
-                        }};
-            request.send();
-        selectedNodeIndex = 0;zoomextents();redraw();});
+                  nodes = JSON.parse(request.responseText);
+                  selectedNodeIndex = 0;zoomextents();redraw();
+                  }};
+            request.send();});
 
 
 
