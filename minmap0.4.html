@@ -22,6 +22,7 @@ const loadButton = createElement('button', { id: 'load-button', style: `position
 const loadLocalButton = createElement('button', { id: 'loadLocal-button', style: `position: absolute; top: ${multiplier * 45}px; right: ${multiplier * 17}px; width: 10ch; font-size: ${multiplier * 17}px;` }, 'LoadLocal');
 const saveLocalButton = createElement('button', { id: 'saveLocal-button', style: `position: absolute; top: ${multiplier * 45}px; right: ${multiplier * 120}px; width: 10ch; font-size: ${multiplier * 17}px;` }, 'SaveLocal');
 const delLocalButton = createElement('button', { id: 'delLocal-button', style: `position: absolute; top: ${multiplier * 45}px; right: ${multiplier * 220}px; width: 12ch; font-size: ${multiplier * 17}px;` }, 'DeleteLocal');
+const InstructionsButton = createElement('button', { id: 'loadLocal-button', style: `position: absolute; top: ${multiplier * 75}px; right: ${multiplier * 17}px; width: 10ch; font-size: ${multiplier * 17}px;` }, 'Instructions');
 var lineHeight = 17;
       const context = canvas.getContext("2d");  
       const urlParams = new URLSearchParams(window.location.hash.substring(1));
@@ -189,6 +190,18 @@ var lineHeight = 17;
           })
           .catch(({ message }) => alert(`Error listing files in Dropbox: ${message}`));
       });
+
+
+      // Instructions
+      InstructionsButton.addEventListener("click", function () {
+            var request = new XMLHttpRequest();
+            request.open('GET', 'instructions.minmap', true);
+            request.onreadystatechange = function() {
+                  if (request.readyState === 4 && request.status === 200) {nodes = JSON.parse(request.responseText);}};
+            request.send();
+        selectedNodeIndex = 0;zoomextents();redraw();});
+
+
 
       authenticateButton.addEventListener("click", function() {
         const appKey = 'uyt17co0totx5rx';// Replace 'YOUR_APP_KEY' with your Dropbox app key
