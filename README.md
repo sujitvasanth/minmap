@@ -9,3 +9,6 @@ The existing mobile minmapping apps for android are really distracting as they i
 
 It can be accessed as a webapp at https://minmap.vercel.app/
 works on ios, android, windows, mac, linux
+
+A very small example is below
+![screenrecording-2023-06-10_19 45 50](https://github.com/sujitvasanth/minmap/assets/18464444/47dd1235-1416-4e2b-8e1a-909fd2c5085e)
