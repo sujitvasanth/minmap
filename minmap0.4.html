@@ -23,6 +23,8 @@ const loadLocalButton = createElement('button', { id: 'loadLocal-button', style:
 const saveLocalButton = createElement('button', { id: 'saveLocal-button', style: `position: absolute; top: ${multiplier * 45}px; right: ${multiplier * 120}px; width: 10ch; font-size: ${multiplier * 17}px;` }, 'SaveLocal');
 const delLocalButton = createElement('button', { id: 'delLocal-button', style: `position: absolute; top: ${multiplier * 45}px; right: ${multiplier * 220}px; width: 12ch; font-size: ${multiplier * 17}px;` }, 'DeleteLocal');
 const InstructionsButton = createElement('button', { id: 'loadLocal-button', style: `position: absolute; top: ${multiplier * 75}px; right: ${multiplier * 17}px; width: 10ch; font-size: ${multiplier * 17}px;` }, 'Instructions');
+const jsonButton = createElement('button', { id: 'json-button', style: `position: absolute; top: ${multiplier * 75}px; right: ${multiplier * 120}px; width: 10ch; font-size: ${multiplier * 17}px;` }, 'JSON');
+
 var lineHeight = 17;
       const context = canvas.getContext("2d");  
       const urlParams = new URLSearchParams(window.location.hash.substring(1));
@@ -211,6 +213,68 @@ var lineHeight = 17;
         if (window.location.protocol === 'file:') {redirectUri = 'http://localhost/minmap0.4.html';}
         let dbx = new Dropbox.Dropbox({ clientId: appKey });
         window.location.href = dbx.getAuthenticationUrl(redirectUri);});
+
+
+      //show json
+      jsonButton.addEventListener("click", createJsonPopup);
+
+      function createJsonPopup() {
+          const popup = document.createElement("div");
+          popup.id = "json-popup";
+          popup.style = `position: absolute; z-index: 1; background-color: white; border: 1px solid #ddd; border-radius: 5px; padding: 10px; width: auto; max-width: 90%; height: 20%; left: 2%; top: 5%; overflow: hidden; display: flex; flex-direction: column;`;
+
+          const editorContainer = document.createElement("div");
+          editorContainer.style = `display: flex; flex: 1; font-family: monospace;`;
+
+          // Assuming each digit is about the same width, and adding some padding
+          const lineNumbers = document.createElement("textarea");
+          lineNumbers.style = `flex: none; width: calc(4.5ch); height: 95%; font-size: 8px; resize: none; overflow: hidden; background: #eee; text-align: right; padding-right: 10px;`;
+          lineNumbers.readOnly = true;
+
+          // Approximating width for 100 characters
+          const textarea = document.createElement("textarea");
+          textarea.style = `height: 95%; font-size: 8px; border: none; overflow-y: scroll; width: calc(80ch);`;
+          textarea.value = nodes.map(node => JSON.stringify(node)).join("\n");
+          textarea.onscroll = () => lineNumbers.scrollTop = textarea.scrollTop;
+          textarea.oninput = updateLineNumbers;
+
+          function updateLineNumbers() {
+              const lineCount = textarea.value.split("\n").length;
+              lineNumbers.value = Array.from({ length: lineCount }, (_, i) => i).join("\n");
+          }
+
+          updateLineNumbers();
+
+          const buttonsContainer = document.createElement("div");
+          buttonsContainer.style = `display: flex; justify-content: space-between; padding-top: 10px;`;
+
+          const closeButton = document.createElement("button");
+          closeButton.textContent = "Close";
+          closeButton.onclick = () => document.body.removeChild(popup);
+
+          const uploadButton = document.createElement("button");
+          uploadButton.textContent = "Upload";
+          uploadButton.onclick = () => {
+              try {
+                  nodes = textarea.value.split("\n").map(line => JSON.parse(line));
+                  redraw();
+              } catch (e) {
+                  alert("Invalid JSON: " + e.message);
+              }
+              document.body.removeChild(popup);
+          };
+
+          buttonsContainer.appendChild(closeButton);
+          buttonsContainer.appendChild(uploadButton);
+
+          editorContainer.appendChild(lineNumbers);
+          editorContainer.appendChild(textarea);
+
+          popup.appendChild(editorContainer);
+          popup.appendChild(buttonsContainer);
+          document.body.appendChild(popup);
+      }
+
 
 
       function drawNode(node) {
