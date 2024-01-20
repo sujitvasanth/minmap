@@ -233,7 +233,7 @@ var lineHeight = 17;
 
           // Approximating width for 100 characters
           const textarea = document.createElement("textarea");
-          textarea.style = `height: 95%; font-size: 8px; border: none; overflow-y: scroll; width: calc(80ch);`;
+          textarea.style = `height: 95%; font-size: 8px; border: none; overflow-y: scroll; overflow-x: auto; white-space: nowrap; width: calc(80ch);`;
           textarea.value = nodes.map(node => JSON.stringify(node)).join("\n");
           textarea.onscroll = () => lineNumbers.scrollTop = textarea.scrollTop;
           textarea.oninput = updateLineNumbers;
