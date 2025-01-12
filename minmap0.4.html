@@ -365,7 +365,7 @@
         return countIterations(parentIndex, iteration + 1);}
           
       function addNode(x, y) {
-        const node = { x, y, label: "", children: [] };
+        const node = { x: Math.round(x), y: Math.round(y), label: "", children: [] };
         if (selectedNodeIndex !== -1) {nodes[selectedNodeIndex].children.push(nodes.length);}
         nodes.push(node); selectedNodeIndex = nodes.length - 1; // set selectedNodeIndex to new node
         hiddenInput.value = "";redraw();}
@@ -455,7 +455,7 @@
           const y = -pany + ((event.clientY - rect.top)/scale);
           const dx = x - lastx;const dy = y - lasty;
           if (pan ==false) {
-            moveNode(selectedNodeIndex , dx, dy);
+            moveNode(selectedNodeIndex , Math.round(dx), Math.round(dy));
             hiddenInput.blur();
             lastx=x;lasty=y;}
           else {panx += dx;pany += dy;}
