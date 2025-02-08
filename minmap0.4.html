@@ -81,11 +81,11 @@
           const ticStr = "✔ ";
           let cursorPos = hiddenInput.selectionStart;
           if (nodes[selectedNodeIndex].label.startsWith(ticStr)){
-            nodes[selectedNodeIndex].label = nodes[selectedNodeIndex].label.slice(ticStr.length);
+            hiddenInput.value = nodes[selectedNodeIndex].label.slice(ticStr.length);
             hiddenInput.setSelectionRange(cursorPos-2,cursorPos-2);
           }
           else {
-            nodes[selectedNodeIndex].label = ticStr + nodes[selectedNodeIndex].label;
+            hiddenInput.value = ticStr + nodes[selectedNodeIndex].label;
             hiddenInput.setSelectionRange(cursorPos+2, cursorPos+2);
           }
           redraw();})    
