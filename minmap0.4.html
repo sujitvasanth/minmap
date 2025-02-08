@@ -192,6 +192,9 @@
                   reader.onload = function (event) {
                     const data = JSON.parse(event.target.result);
                     nodes = data;
+                    nodes.forEach(function(node) {
+                      node.x = Math.round(node.x);
+                      node.y = Math.round(node.y);});
                     selectedNodeIndex = 0;
                     zoomextents();
                     redraw();
