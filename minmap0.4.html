@@ -366,12 +366,11 @@
           optionsButton.style.left = `${optionsButtonX}px`;
           optionsButton.style.top = `${optionsButtonY}px`;
           optionsButton.style.display = "block";
-          if (cutButton.style.display=="block") {
-            const left = optionsButton.style.left; const top = optionsButton.style.top;
-            cutButton.style.left = `${parseInt(left) + 20*multiplier}px`;cutButton.style.top = `${parseInt(top) - 25*multiplier}px`;
-            copyButton.style.left = `${parseInt(left) + 20*multiplier}px`;copyButton.style.top = `${parseInt(top) - 50*multiplier}px`;
-            pasteButton.style.left = `${parseInt(left) + 20*multiplier}px`;pasteButton.style.top = `${parseInt(top) - 75*multiplier}px`;
-            ticButton.style.left = `${parseInt(left) + 20*multiplier}px`;cutButton.style.top = `${parseInt(top) - 25*multiplier}px`;}};}  
+          const left = optionsButton.style.left; const top = optionsButton.style.top;
+          cutButton.style.left = `${parseInt(left) + 20*multiplier}px`;cutButton.style.top = `${parseInt(top) - 25*multiplier}px`;
+          copyButton.style.left = `${parseInt(left) + 20*multiplier}px`;copyButton.style.top = `${parseInt(top) - 50*multiplier}px`;
+          pasteButton.style.left = `${parseInt(left) + 20*multiplier}px`;pasteButton.style.top = `${parseInt(top) - 75*multiplier}px`;
+          ticButton.style.left = `${parseInt(left) + 20*multiplier}px`;cutButton.style.top = `${parseInt(top) - 25*multiplier}px`;};}  
           }
 
       function countIterations(index, iteration) {
