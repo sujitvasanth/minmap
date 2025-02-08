@@ -75,7 +75,15 @@
                   nodesclipboard[i].children[j] = oldIndex+newnodeindex;}}  
         for (var i = 0; i < nodesclipboard.length; i++) {//add the amended nodes to the nodes array 
             nodes.push(JSON.parse(JSON.stringify(nodesclipboard[i])));} //create a deep copy of the node
-        menuupdate(0);redraw();})              
+        menuupdate(0);redraw();})
+
+      ticButton.addEventListener("click", function() {
+          const ticStr = "✓ ";
+          if (nodes[selectedNodeIndex].label.startsWith(ticStr)) {
+            nodes[selectedNodeIndex].label = nodes[selectedNodeIndex].label.slice(ticStr.length);}
+          else {
+            nodes[selectedNodeIndex].label = ticStr + nodes[selectedNodeIndex].label;}
+          redraw();})    
       
       function menuupdate(state) {
         var display="none";
