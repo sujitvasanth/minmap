@@ -82,13 +82,14 @@
           let cursorPos = hiddenInput.selectionStart;
           if (hiddenInput.value.startsWith(ticStr)){
             hiddenInput.value = hiddenInput.value.slice(2);
+            nodes[selectedNodeIndex].label=hiddenInput.value
             hiddenInput.setSelectionRange(cursorPos-2,cursorPos-2);
           }
           else {
             hiddenInput.value = ticStr + hiddenInput.value;
+            nodes[selectedNodeIndex].label=hiddenInput.value
             hiddenInput.setSelectionRange(cursorPos+2, cursorPos+2);
           }
-          nodes[selectedNodeIndex].label=hiddenInput.value
           redraw();})    
       
       function menuupdate(state) {
