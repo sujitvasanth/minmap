@@ -80,14 +80,15 @@
       ticButton.addEventListener("click", function() {
           const ticStr = "✔ ";
           let cursorPos = hiddenInput.selectionStart;
-          if (nodes[selectedNodeIndex].label.startsWith(ticStr)){
+          if (hiddenInput.value.startsWith(ticStr)){
             hiddenInput.value = hiddenInput.value.slice(2);
             hiddenInput.setSelectionRange(cursorPos-2,cursorPos-2);
           }
           else {
-            hiddenInput.value = ticStr + nodes[selectedNodeIndex].label;
+            hiddenInput.value = ticStr + hiddenInput.value;
             hiddenInput.setSelectionRange(cursorPos+2, cursorPos+2);
           }
+        
           redraw();})    
       
       function menuupdate(state) {
