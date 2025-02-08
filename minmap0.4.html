@@ -79,6 +79,7 @@
 
       ticButton.addEventListener("click", function() {
           const ticStr = "✔ ";
+          hiddenInput.focus(); 
           let cursorPos = hiddenInput.selectionStart;
           if (hiddenInput.value.startsWith(ticStr)){
             hiddenInput.value = hiddenInput.value.slice(2);
