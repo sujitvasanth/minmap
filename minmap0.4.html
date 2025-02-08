@@ -15,6 +15,7 @@
       const cutButton = createElement('button', { id: 'cut-button', style: `position: absolute; top: ${multiplier * 10}px; right: ${multiplier * 10}px; width: 6ch; font-size: ${multiplier * 14}px; display: none;` }, ' Cut ');
       const copyButton = createElement('button', { id: 'copy-button', style: `position: absolute; top: ${multiplier * 10}px; right: ${multiplier * 16}px; width: 6ch; font-size: ${multiplier * 14}px; display: none;` }, 'Copy');
       const pasteButton = createElement('button', { id: 'paste-button', style: `position: absolute; top: ${multiplier * 10}px; right: ${multiplier * 22}px; width: 6ch; font-size: ${multiplier * 14}px; display: none;` }, 'Paste');
+      const ticButton = createElement('button', { id: 'tic-button', style: `position: absolute; top: ${multiplier * 10}px; right: ${multiplier * 10}px; width: 6ch; font-size: ${multiplier * 14}px; display: none;` }, 'Tic');
       const optionsButton = createElement('button', { id: 'options-button', style: `position: absolute; top: ${multiplier * 10}px; right: ${multiplier * 28}px; width: 3.5ch; font-size: ${multiplier * 14}px; display: none;` }, '...');
       const authenticateButton = createElement('button', { id: 'authenticate-button', style: `position: absolute; top: ${multiplier * 15}px; right: ${multiplier * 220}px; width: 12ch; font-size: ${multiplier * 17}px;` }, 'Authenticate');
       const saveButton = createElement('button', { id: 'save-button', style: `position: absolute; top: ${multiplier * 15}px; right: ${multiplier * 120}px; width: 10ch; font-size: ${multiplier * 17}px;` }, 'SaveCloud');
@@ -58,7 +59,9 @@
         cutButton.style.left = `${parseInt(left) + 20*multiplier}px`;cutButton.style.top = `${parseInt(top) - 25*multiplier}px`;
         copyButton.style.left = `${parseInt(left) + 20*multiplier}px`;copyButton.style.top = `${parseInt(top) - 50*multiplier}px`;
         pasteButton.style.left = `${parseInt(left) + 20*multiplier}px`;pasteButton.style.top = `${parseInt(top) - 75*multiplier}px`;
-        if (cutButton.style.display=="none") {menuupdate(1);} else {menuupdate(0);}
+        if (cutButton.style.display === "none" && ticButton.style.display === "none") {menuupdate(1);}
+        else if (cutButton.style.display === "block") {menuupdate(2);}
+        else {menuupdate(0);}
       });
             
       pasteButton.addEventListener("click", function() {
@@ -74,9 +77,13 @@
         menuupdate(0);redraw();})              
       
       function menuupdate(state) {
-        var display="none"; if (state==1) {display="block"} 
+        var display="none";
+        if (state==1) {display="block"} 
         cutButton.style.display = display;copyButton.style.display = display;
-        pasteButton.style.display = display;}
+        pasteButton.style.display = display;
+        if (state==2) {display="block"} else {display="none";}
+        ticButton.style.display = display;
+      }
       
       // Local Save
       saveLocalButton.addEventListener("click", function () {
