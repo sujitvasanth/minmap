@@ -81,7 +81,7 @@
           const ticStr = "✔ ";
           let cursorPos = hiddenInput.selectionStart;
           if (nodes[selectedNodeIndex].label.startsWith(ticStr)){
-            hiddenInput.value = nodes[selectedNodeIndex].label.slice(ticStr.length);
+            hiddenInput.value = hiddenInput.value.slice(2);
             hiddenInput.setSelectionRange(cursorPos-2,cursorPos-2);
           }
           else {
