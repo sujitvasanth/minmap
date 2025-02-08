@@ -78,11 +78,9 @@
         menuupdate(0);redraw();})
 
       ticButton.addEventListener("click", function() {
-          const ticStr = "✓ ";
-          if (nodes[selectedNodeIndex].label.startsWith(ticStr)) {
-            nodes[selectedNodeIndex].label = nodes[selectedNodeIndex].label.slice(ticStr.length);}
-          else {
-            nodes[selectedNodeIndex].label = ticStr + nodes[selectedNodeIndex].label;}
+          const ticStr = "✔ ";
+          if (nodes[selectedNodeIndex].label.startsWith(ticStr)) {nodes[selectedNodeIndex].label = nodes[selectedNodeIndex].label.slice(ticStr.length);}
+          else {nodes[selectedNodeIndex].label = ticStr + nodes[selectedNodeIndex].label;}
           redraw();})    
       
       function menuupdate(state) {
