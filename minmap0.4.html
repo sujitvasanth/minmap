@@ -160,6 +160,9 @@
         if (files.length === 0) {alert("No files found");return;}
         createPopup("Open", files, (selectedFile) => {
           nodes = selectedFile.nodes;selectedNodeIndex = 0;
+        nodes.forEach(function(node) {
+          node.x = Math.round(node.x);
+          node.y = Math.round(node.y);});
           lastFileName = selectedFile.name; // Update the last filename
           zoomextents();redraw();});
       });
