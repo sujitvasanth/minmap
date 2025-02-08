@@ -230,6 +230,7 @@
                   if (request.readyState === 4 && request.status === 200) {
                   nodes = JSON.parse(request.responseText);
                   selectedNodeIndex = 0;zoomextents();redraw();
+                  lastFileName = 'instructions';
                   }};
             request.send();});
 
