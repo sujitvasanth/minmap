@@ -53,19 +53,46 @@
       const urlParams = new URLSearchParams(window.location.hash.substring(1));
       const accessToken = urlParams.get("access_token"); if (!accessToken) {saveButton.disabled = true;loadButton.disabled = true;}
       
-      // --- NEW: Custom Fetch to solve CORS problem ---
-      function customFetch(url, options) {
-        const newOptions = { ...options };
-        if (!newOptions.headers) {
-          newOptions.headers = {};
-        }
-        // Manually set Authorization header for content downloads
-        if (url.includes('content.dropboxapi.com')) {
-          newOptions.headers['Authorization'] = 'Bearer ' + accessToken;
-        }
-        return fetch(url, newOptions);
+      // --- NEW: Custom Fetch Replacement using XMLHttpRequest to solve CORS problem ---
+      function customFetchXHR(url, options) {
+        return new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open(options.method, url);
+          for (const key in options.headers) {
+            if (key !== 'Content-Type' || !options.body) { // Let XHR set Content-Type for blobs
+              xhr.setRequestHeader(key, options.headers[key]);
+            }
+          }
+          if (url.includes('content.dropboxapi.com')) {
+              xhr.responseType = 'blob';
+          }
+          xhr.onload = () => {
+            const responseHeaders = xhr.getAllResponseHeaders().split('\r\n')
+              .reduce((result, current) => {
+                const [name, value] = current.split(': ');
+                result[name.toLowerCase()] = value;
+                return result;
+              }, {});
+            let body;
+            if (xhr.responseType === 'blob') {
+              body = xhr.response;
+            } else {
+              body = xhr.responseText;
+            }
+            resolve({
+              ok: xhr.status >= 200 && xhr.status < 300,
+              status: xhr.status,
+              headers: { get: (header) => responseHeaders[header.toLowerCase()] },
+              json: () => Promise.resolve(JSON.parse(body)),
+              text: () => Promise.resolve(body),
+              blob: () => Promise.resolve(body)
+            });
+          };
+          xhr.onerror = () => reject(new TypeError('Network request failed'));
+          xhr.send(options.body);
+        });
       }
-
+      
       var nodes = [];let selectedNodeIndex = -1; var subtreeindices=[];var nodesclipboard=[];
       const radiusX = 80;const radiusY = 30;const cornerRadius = 18; var name="";
       let lastTouchTime = 0;var lastx=0;var lasty=0;let drag = 0;var pan = false; var panx=0; var pany=0;
@@ -219,7 +246,7 @@
           const blob = new Blob([data], { type: "application/json" });
           const fileReader = new FileReader();
           fileReader.onloadend = function() {
-            const dropbox = new Dropbox.Dropbox({ accessToken: accessToken, fetch: customFetch });
+            const dropbox = new Dropbox.Dropbox({ accessToken: accessToken, fetch: customFetchXHR });
             const filePath = '/Minmap/' + fileName + '.minmap';
             dropbox.filesUpload({ path: filePath, contents: fileReader.result, mode: 'overwrite' })
               .then(function(response) {
@@ -239,9 +266,9 @@
       function updateMetadataFile(dropbox, newFileInfo) {
         dropbox.filesDownload({ path: METADATA_FILE_PATH })
           .then(response => {
-            const reader = new FileReader();
-            reader.onload = function(event) {
-              let metadata = JSON.parse(event.target.result);
+            const blob = response.result.fileBlob;
+            blob.text().then(text => {
+              let metadata = JSON.parse(text);
               const existingIndex = metadata.findIndex(f => f.name === newFileInfo.name);
               if (existingIndex > -1) {
                 metadata[existingIndex] = newFileInfo;
@@ -249,8 +276,7 @@
                 metadata.push(newFileInfo);
               }
               uploadMetadata(dropbox, metadata);
-            };
-            reader.readAsText(response.result.fileBlob);
+            });
           })
           .catch(error => {
             uploadMetadata(dropbox, [newFileInfo]);
@@ -369,7 +395,7 @@
        });
 
       loadButton.addEventListener("click", () => {
-        const dropbox = new Dropbox.Dropbox({ accessToken: accessToken, fetch: customFetch });
+        const dropbox = new Dropbox.Dropbox({ accessToken: accessToken, fetch: customFetchXHR });
         const showPopupWithFiles = (files) => {
           files.sort((a, b) => new Date(b.creationDate) - new Date(a.creationDate));
           createPopup("Open", files, (selectedFile) => {
@@ -380,9 +406,8 @@
         };
         dropbox.filesDownload({ path: METADATA_FILE_PATH })
           .then(response => {
-            const reader = new FileReader();
-            reader.onload = function (event) { showPopupWithFiles(JSON.parse(event.target.result)); };
-            reader.readAsText(response.result.fileBlob);
+            const blob = response.result.fileBlob;
+            blob.text().then(text => showPopupWithFiles(JSON.parse(text)));
           })
           .catch(error => {
             alert("Index file not found. Building it now, this may take a moment.");
@@ -397,9 +422,8 @@
 
       function handleFileDownload(response) {
         const blob = response.result.fileBlob;
-        const reader = new FileReader();
-        reader.onload = function (event) {
-          const data = JSON.parse(event.target.result);
+        blob.text().then(text => {
+          const data = JSON.parse(text);
           if (data.hasOwnProperty('nodes')) {
               nodes = data.nodes;
               currentFileCreationDate = data.creationDate || null;
@@ -414,8 +438,7 @@
           selectedNodeIndex = 0;
           zoomextents();
           redraw();
-        };
-        reader.readAsText(blob);
+        });
       }
 
       function buildAndUploadIndex(dropbox) {
@@ -424,22 +447,19 @@
             const minmapFiles = response.result.entries.filter(file => file.name.endsWith(".minmap"));
             const downloadPromises = minmapFiles.map(file => 
               dropbox.filesDownload({ path: file.path_lower })
-                .then(response => new Promise((resolve, reject) => {
-                  const reader = new FileReader();
-                  reader.onload = (event) => {
+                .then(response => response.result.fileBlob.text()
+                  .then(text => {
                     try {
-                      const data = JSON.parse(event.target.result);
-                      resolve({
+                      const data = JSON.parse(text);
+                      return {
                         name: file.name,
                         creationDate: data.creationDate || file.server_modified
-                      });
+                      };
                     } catch(e) { 
-                      resolve({ name: file.name, creationDate: file.server_modified });
+                      return { name: file.name, creationDate: file.server_modified };
                     }
-                  };
-                  reader.onerror = reject;
-                  reader.readAsText(response.result.fileBlob);
-                }))
+                  })
+                )
             );
             return Promise.all(downloadPromises);
           })
@@ -461,7 +481,7 @@
             request.send();});
 
       authenticateButton.addEventListener("click", function() {
-        const dbxAuth = new Dropbox.DropboxAuth({ clientId: appKey });
+        const dbxAuth = new Dropbox.DropboxAuth({ clientId: appKey, fetch: customFetchXHR });
         const scopes = ['files.content.read', 'files.content.write'];
         dbxAuth.getAuthenticationUrl(redirectUri, undefined, 'code', 'offline', scopes, 'none', true)
           .then(authUrl => {
