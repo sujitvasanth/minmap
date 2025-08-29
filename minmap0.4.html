@@ -27,7 +27,7 @@
       const jsonButton = createElement('button', { id: 'json-button', style: `position: absolute; top: ${multiplier * 75}px; right: ${multiplier * 120}px; width: 10ch; font-size: ${multiplier * 17}px;` }, 'JSON');
 
       const METADATA_FILE_PATH = "/Minmap/_mindmap_index.json";
-      const appKey = 'uyt17co0totx5rx'; // Your Dropbox App Key
+      const appKey = 'uyt17co0totx5rx'; // <-- IMPORTANT: Remember to use your real App Key
       let redirectUri = 'https://minmap.vercel.app';
       if (window.location.protocol === 'file:') {redirectUri = 'http://localhost/minmap0.4.html';}
 
@@ -52,6 +52,20 @@
       const context = canvas.getContext("2d");  
       const urlParams = new URLSearchParams(window.location.hash.substring(1));
       const accessToken = urlParams.get("access_token"); if (!accessToken) {saveButton.disabled = true;loadButton.disabled = true;}
+      
+      // --- NEW: Custom Fetch to solve CORS problem ---
+      function customFetch(url, options) {
+        const newOptions = { ...options };
+        if (!newOptions.headers) {
+          newOptions.headers = {};
+        }
+        // Manually set Authorization header for content downloads
+        if (url.includes('content.dropboxapi.com')) {
+          newOptions.headers['Authorization'] = 'Bearer ' + accessToken;
+        }
+        return fetch(url, newOptions);
+      }
+
       var nodes = [];let selectedNodeIndex = -1; var subtreeindices=[];var nodesclipboard=[];
       const radiusX = 80;const radiusY = 30;const cornerRadius = 18; var name="";
       let lastTouchTime = 0;var lastx=0;var lasty=0;let drag = 0;var pan = false; var panx=0; var pany=0;
@@ -205,7 +219,7 @@
           const blob = new Blob([data], { type: "application/json" });
           const fileReader = new FileReader();
           fileReader.onloadend = function() {
-            const dropbox = new Dropbox.Dropbox({ accessToken: accessToken });
+            const dropbox = new Dropbox.Dropbox({ accessToken: accessToken, fetch: customFetch });
             const filePath = '/Minmap/' + fileName + '.minmap';
             dropbox.filesUpload({ path: filePath, contents: fileReader.result, mode: 'overwrite' })
               .then(function(response) {
@@ -355,7 +369,7 @@
        });
 
       loadButton.addEventListener("click", () => {
-        const dropbox = new Dropbox.Dropbox({ accessToken: accessToken });
+        const dropbox = new Dropbox.Dropbox({ accessToken: accessToken, fetch: customFetch });
         const showPopupWithFiles = (files) => {
           files.sort((a, b) => new Date(b.creationDate) - new Date(a.creationDate));
           createPopup("Open", files, (selectedFile) => {
@@ -758,5 +772,3 @@
            zoomSlider.value = scale;
            redraw();}, {passive: true});
     </script></body></html>
-129.6s
-Use Arrow Up and Arrow Down to select a turn, Enter to jump to it, and Escape to return to the chat.
