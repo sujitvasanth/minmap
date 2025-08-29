@@ -31,16 +31,14 @@
       let redirectUri = 'https://minmap.vercel.app';
       if (window.location.protocol === 'file:') {redirectUri = 'http://localhost/minmap0.4.html';}
 
-      // --- NEW: Modern Dropbox Authentication Handler ---
       const authUrlParams = new URLSearchParams(window.location.search);
       const authCode = authUrlParams.get('code');
       if (authCode) {
-        const dbx = new Dropbox.Dropbox({ clientId: appKey });
-        dbx.auth.setCodeVerifier(window.localStorage.getItem("codeVerifier"));
-        dbx.auth.getAccessTokenFromCode(redirectUri, authCode)
+        const dbxAuth = new Dropbox.DropboxAuth({ clientId: appKey });
+        dbxAuth.setCodeVerifier(window.localStorage.getItem("codeVerifier"));
+        dbxAuth.getAccessTokenFromCode(redirectUri, authCode)
           .then(function(response) {
             window.localStorage.removeItem("codeVerifier");
-            // Reload the page with the token in the hash, as the rest of the app expects.
             window.location.href = redirectUri + '#access_token=' + response.result.access_token;
           })
           .catch(function(error) {
@@ -215,7 +213,10 @@
                 updateMetadataFile(dropbox, { name: fileName + '.minmap', creationDate: creationDate });
                 alert('File saved to Dropbox');
               })
-              .catch(function(error) {alert('Error saving file to Dropbox: ' + JSON.stringify(error));});
+              .catch(function(error) {
+                console.error("Save Error: ", error);
+                alert('Error saving file to Dropbox. Check console for details.');
+              });
           };
           fileReader.readAsArrayBuffer(blob);
         });
@@ -296,7 +297,8 @@
               refreshedFiles.sort((a, b) => new Date(b.creationDate) - new Date(a.creationDate));
               createPopup(action, refreshedFiles, onFileSelect, dropboxInstance);
             }).catch(err => {
-              alert("Failed to refresh index: " + JSON.stringify(err));
+              alert("Failed to refresh index. Check console for details.");
+              console.error("Refresh Error: ", err);
               refreshBtn.textContent = "Refresh";
               refreshBtn.disabled = false;
             });
@@ -372,7 +374,10 @@
             alert("Index file not found. Building it now, this may take a moment.");
             buildAndUploadIndex(dropbox)
               .then(showPopupWithFiles)
-              .catch(err => alert("Could not build index: " + JSON.stringify(err)));
+              .catch(err => {
+                alert("Could not build index. Check console for details.");
+                console.error("Build Index Error: ", err);
+              });
           });
       });
 
@@ -442,10 +447,11 @@
             request.send();});
 
       authenticateButton.addEventListener("click", function() {
-        let dbx = new Dropbox.Dropbox({ clientId: appKey });
-        dbx.auth.getAuthenticationUrl(redirectUri, undefined, 'code', 'offline', undefined, 'none', true)
+        const dbxAuth = new Dropbox.DropboxAuth({ clientId: appKey });
+        const scopes = ['files.content.read', 'files.content.write'];
+        dbxAuth.getAuthenticationUrl(redirectUri, undefined, 'code', 'offline', scopes, 'none', true)
           .then(authUrl => {
-            window.localStorage.setItem("codeVerifier", dbx.auth.getCodeVerifier());
+            window.localStorage.setItem("codeVerifier", dbxAuth.getCodeVerifier());
             window.location.href = authUrl;
           })
           .catch(error => {
@@ -752,3 +758,5 @@
            zoomSlider.value = scale;
            redraw();}, {passive: true});
     </script></body></html>
+129.6s
+Use Arrow Up and Arrow Down to select a turn, Enter to jump to it, and Escape to return to the chat.
