@@ -27,6 +27,7 @@
       const jsonButton = createElement('button', { id: 'json-button', style: `position: absolute; top: ${multiplier * 75}px; right: ${multiplier * 120}px; width: 10ch; font-size: ${multiplier * 17}px;` }, 'JSON');
 
       let lastFileName = ""; // Initialize as blank
+      let currentFileCreationDate = null;
       var lineHeight = 17;
       const context = canvas.getContext("2d");  
       const urlParams = new URLSearchParams(window.location.hash.substring(1));
@@ -102,123 +103,209 @@
         ticButton.style.display = display;
       }
       
-      // Local Save
+      function createSavePopup(onSave) {
+        const popup = document.createElement("div");
+        popup.style = `position: absolute; z-index: 10; background-color: #f0f0f0; border: 1px solid #ccc; border-radius: 8px; padding: 20px; width: 350px; left: 50%; top: 50%; transform: translate(-50%, -50%); box-shadow: 0 4px 8px rgba(0,0,0,0.2);`;
+        const title = document.createElement("h3");
+        title.textContent = "Save Mind Map";
+        title.style.marginTop = "0";
+        const nameLabel = document.createElement("label");
+        nameLabel.textContent = "Filename:";
+        nameLabel.style.display = "block";
+        const nameInput = document.createElement("input");
+        nameInput.type = "text";
+        nameInput.value = lastFileName || name;
+        nameInput.style = "width: 95%; padding: 8px; margin-top: 5px; margin-bottom: 15px;";
+        const dateLabel = document.createElement("label");
+        dateLabel.textContent = "Creation Date:";
+        dateLabel.style.display = "block";
+        const dateInput = document.createElement("input");
+        dateInput.type = "date";
+        const dateToUse = currentFileCreationDate ? new Date(currentFileCreationDate) : new Date();
+        dateInput.value = dateToUse.toISOString().slice(0, 10);
+        dateInput.style = "width: 95%; padding: 8px; margin-top: 5px; margin-bottom: 20px;";
+        const buttonContainer = document.createElement("div");
+        buttonContainer.style.textAlign = "right";
+        const cancelButton = document.createElement("button");
+        cancelButton.textContent = "Cancel";
+        cancelButton.style = "padding: 10px 15px; margin-right: 10px;";
+        cancelButton.onclick = () => document.body.removeChild(popup);
+        const saveButton = document.createElement("button");
+        saveButton.textContent = "Save";
+        saveButton.style = "padding: 10px 15px; background-color: #007bee; color: white; border: none; border-radius: 4px;";
+        saveButton.onclick = () => {
+          const fileName = nameInput.value;
+          if (!fileName) {
+            alert("Filename cannot be empty.");
+            return;
+          }
+          const creationDateISO = new Date(dateInput.value + 'T00:00:00.000Z').toISOString();
+          onSave(fileName, creationDateISO);
+          document.body.removeChild(popup);
+        };
+        buttonContainer.append(cancelButton, saveButton);
+        popup.append(title, nameLabel, nameInput, dateLabel, dateInput, buttonContainer);
+        document.body.appendChild(popup);
+      }
+
       saveLocalButton.addEventListener("click", function () {
         if (nodes.length === 0) {
           alert("Mindmap is blank so not saved");
-        } else {
-          try {
-            const fileName = prompt("Please enter a filename for your Mind Map:", lastFileName || name);
-            if (fileName) {
-              lastFileName = fileName; // Update the last filename
-              const file = {name: fileName, nodes: nodes,};
-              let files = JSON.parse(localStorage.getItem("files")) || [];
-              // Check if the filename already exists in the files list
-              const existingFileIndex = files.findIndex((existingFile) => existingFile.name === fileName);
-              if (existingFileIndex !== -1) {files[existingFileIndex] = file;}
-              else {files.push(file);}
-              localStorage.setItem("files", JSON.stringify(files));
-              alert("File was successfully saved!");
-            } else {alert("Invalid file name");}
-          } catch (e) {alert("Error saving file: " + e);}
+          return;
         }
+        createSavePopup((fileName, creationDate) => {
+          try {
+            lastFileName = fileName;
+            const file = { name: fileName, nodes: nodes, creationDate: creationDate };
+            let files = JSON.parse(localStorage.getItem("files")) || [];
+            const existingFileIndex = files.findIndex((f) => f.name === fileName);
+            if (existingFileIndex !== -1) {
+              files[existingFileIndex] = file;
+            } else {
+              files.push(file);
+            }
+            localStorage.setItem("files", JSON.stringify(files));
+            currentFileCreationDate = creationDate;
+            alert("File was successfully saved!");
+          } catch (e) {
+            alert("Error saving file: " + e);
+          }
+        });
       });
 
-
-      //Cloud Save
       saveButton.addEventListener("click", function() {
-        const fileName = prompt("Please enter a filename for your Mind Map:", lastFileName || name);
-        if (fileName != null) {
-          lastFileName = fileName; // Update the last filename
-          const data = JSON.stringify(nodes);
+        if (nodes.length === 0) {
+          alert("Mindmap is blank so not saved");
+          return;
+        }
+        createSavePopup((fileName, creationDate) => {
+          lastFileName = fileName;
+          const dataToSave = { nodes: nodes, creationDate: creationDate };
+          const data = JSON.stringify(dataToSave);
           const blob = new Blob([data], { type: "application/json" });
           const fileReader = new FileReader();
           fileReader.onloadend = function() {
             const dropbox = new Dropbox.Dropbox({ accessToken: accessToken });
             dropbox.filesUpload({ path: '/Minmap/' + fileName + '.minmap', contents: fileReader.result, mode: 'overwrite' })
-              .then(function(response) {alert('File saved to Dropbox');})
-              .catch(function(error) {alert('Error saving file to Dropbox: ' + error.message);});};
-          fileReader.readAsArrayBuffer(blob);}});
+              .then(function(response) {
+                currentFileCreationDate = creationDate;
+                alert('File saved to Dropbox');
+              })
+              .catch(function(error) {alert('Error saving file to Dropbox: ' + error.message);});
+          };
+          fileReader.readAsArrayBuffer(blob);
+        });
+      });
 
       function createPopup(action, files, onFileSelect) {
+        let selectedIndex = -1;
         const popup = document.createElement("div");
-        popup.style = `position: absolute; z-index: 1; background-color: #007bee; border: 1px solid #ddd; border-radius: 5px; padding: 5px; width: 50%; height: 25%; left: 50%; top: 50%; transform: translate(-50%, -50%);`;
-        const popupList = document.createElement("select");
-        popupList.style = `padding: 15px; width: 100%; background-color: #fff; color: #000; font-size: 18px; border: 1px solid #ccc;`;
-        popupList.size = 5;
-        popupList.append(
-          ...files.map((file, index) => {
-            const option = document.createElement("option");
-            option.value = index;
-            option.textContent = file.name;
-            return option;
-          })
-        );
-
+        popup.style = `position: absolute; z-index: 1; background-color: #f0f0f0; border: 1px solid #ddd; border-radius: 5px; padding: 10px; width: 400px; max-height: 50%; left: 50%; top: 50%; transform: translate(-50%, -50%); box-shadow: 0 4px 8px rgba(0,0,0,0.2); display: flex; flex-direction: column;`;
+        const listContainer = document.createElement("div");
+        listContainer.style = 'border: 1px solid #ccc; background-color: white; overflow-y: auto; flex-grow: 1; margin-bottom: 10px;';
+        files.forEach((file, index) => {
+            const row = document.createElement('div');
+            row.style = 'display: flex; justify-content: space-between; padding: 8px 10px; cursor: pointer; border-bottom: 1px solid #eee;';
+            row.onmouseenter = () => { if (selectedIndex !== index) row.style.backgroundColor = '#f9f9f9'; };
+            row.onmouseleave = () => { if (selectedIndex !== index) row.style.backgroundColor = 'white'; };
+            const nameSpan = document.createElement('span');
+            nameSpan.style = 'overflow: hidden; text-overflow: ellipsis; white-space: nowrap;';
+            nameSpan.textContent = file.name.endsWith('.minmap') ? file.name.slice(0, -7) : file.name;
+            const dateSpan = document.createElement('span');
+            dateSpan.style = 'margin-left: 20px; color: #555; flex-shrink: 0;';
+            const dateString = file.creationDate || file.server_modified;
+            if (dateString) { try { dateSpan.textContent = new Date(dateString).toLocaleDateString(); } catch (e) {} }
+            row.append(nameSpan, dateSpan);
+            row.addEventListener("click", () => {
+                const currentSelected = listContainer.querySelector('[data-selected="true"]');
+                if (currentSelected) {
+                    currentSelected.style.backgroundColor = 'white';
+                    currentSelected.removeAttribute('data-selected');
+                }
+                row.style.backgroundColor = '#dbeafe';
+                row.setAttribute('data-selected', 'true');
+                selectedIndex = index;
+            });
+            listContainer.appendChild(row);
+        });
+        popup.appendChild(listContainer);
+        const buttonContainer = document.createElement("div");
+        buttonContainer.style.textAlign = "right";
         const selectButton = document.createElement("button");
         selectButton.textContent = action;
-        selectButton.style = `margin-right: 10px; font-size: 18px;`;
+        selectButton.style = `margin-right: 10px; font-size: 16px; padding: 8px 12px;`;
         selectButton.addEventListener("click", () => {
-          const selectedOption = popupList.querySelector("option:checked");
-          if (selectedOption) {
-            const selectedIndex = selectedOption.value;
+          if (selectedIndex > -1) {
             onFileSelect(files[selectedIndex]);
             document.body.removeChild(popup);
           } else {
             alert("Please select a file.");
           }
         });
-
         const cancelButton = document.createElement("button");
         cancelButton.textContent = "Cancel";
-        cancelButton.style = `font-size: 18px;`;
+        cancelButton.style = `font-size: 16px; padding: 8px 12px;`;
         cancelButton.addEventListener("click", () => document.body.removeChild(popup));
-
-        popup.append(popupList, selectButton, cancelButton);
+        buttonContainer.append(selectButton, cancelButton);
+        popup.appendChild(buttonContainer);
         document.body.appendChild(popup);
       }
 
-      // Local Load
       loadLocalButton.addEventListener("click", function () {
         const files = JSON.parse(localStorage.getItem("files")) || [];
         if (files.length === 0) {alert("No files found");return;}
+        files.sort((a, b) => new Date(b.creationDate) - new Date(a.creationDate));
         createPopup("Open", files, (selectedFile) => {
-          nodes = selectedFile.nodes;selectedNodeIndex = 0;
-        nodes.forEach(function(node) {
-          node.x = Math.round(node.x);
-          node.y = Math.round(node.y);});
-          lastFileName = selectedFile.name; // Update the last filename
-          zoomextents();redraw();});
+          nodes = selectedFile.nodes;
+          currentFileCreationDate = selectedFile.creationDate || null;
+          selectedNodeIndex = 0;
+          nodes.forEach(function(node) {
+            node.x = Math.round(node.x);
+            node.y = Math.round(node.y);
+          });
+          lastFileName = selectedFile.name;
+          zoomextents();
+          redraw();
+        });
       });
 
-      // Local Delete
       delLocalButton.addEventListener("click", function () {
         const files = JSON.parse(localStorage.getItem("files")) || [];
         if (files.length === 0) {alert("No files found");return;}
+        files.sort((a, b) => new Date(b.creationDate) - new Date(a.creationDate));
         createPopup("Delete", files, (selectedFile) => {
-            const updatedFiles = files.filter(file => file !== selectedFile);
-            localStorage.setItem("files", JSON.stringify(updatedFiles));});
+            const updatedFiles = files.filter(file => file.name !== selectedFile.name);
+            localStorage.setItem("files", JSON.stringify(updatedFiles));
+            alert(`File "${selectedFile.name}" has been deleted.`);
+        });
        });
 
-      //CloudLoad
       loadButton.addEventListener("click", () => {
         const dropbox = new Dropbox.Dropbox({ accessToken });
         dropbox.filesListFolder({ path: "/Minmap" })
           .then(({ entries }) => {
             const minmapFiles = entries.filter((file) => file.name.endsWith(".minmap"));
+            minmapFiles.sort((a, b) => new Date(b.server_modified) - new Date(a.server_modified));
             createPopup("Open", minmapFiles, (selectedFile) => {
               name = selectedFile.name.slice(0, -7);
-              lastFileName = name; // Update the last filename
+              lastFileName = name;
               dropbox.filesDownload({ path: selectedFile.path_lower })
                 .then(function (response) {
                   const blob = new Blob([response.fileBlob], { type: "application/json" });
                   const reader = new FileReader();
                   reader.onload = function (event) {
                     const data = JSON.parse(event.target.result);
-                    nodes = data;
+                    if (data.hasOwnProperty('nodes')) {
+                        nodes = data.nodes;
+                        currentFileCreationDate = data.creationDate || null;
+                    } else {
+                        nodes = data;
+                        currentFileCreationDate = null;
+                    }
                     nodes.forEach(function(node) {
                       node.x = Math.round(node.x);
-                      node.y = Math.round(node.y);});
+                      node.y = Math.round(node.y);
+                    });
                     selectedNodeIndex = 0;
                     zoomextents();
                     redraw();
@@ -231,8 +318,6 @@
           .catch(({ message }) => alert(`Error listing files in Dropbox: ${message}`));
       });
 
-
-      // Instructions
       InstructionsButton.addEventListener("click", function () {
             var request = new XMLHttpRequest();
             request.open('GET', 'instructions.minmap', true);
@@ -241,6 +326,7 @@
                   nodes = JSON.parse(request.responseText);
                   selectedNodeIndex = 0;zoomextents();redraw();
                   lastFileName = 'instructions';
+                  currentFileCreationDate = null;
                   }};
             request.send();});
 
@@ -250,45 +336,33 @@
         if (window.location.protocol === 'file:') {redirectUri = 'http://localhost/minmap0.4.html';}
         let dbx = new Dropbox.Dropbox({ clientId: appKey });
         window.location.href = dbx.getAuthenticationUrl(redirectUri);});
-
       
-      //show json
       jsonButton.addEventListener("click", createJsonPopup);
 
       function createJsonPopup() {
           const popup = document.createElement("div");
           popup.id = "json-popup";
           popup.style = `position: absolute; z-index: 1; background-color: white; border: 1px solid #ddd; border-radius: 5px; padding: 10px; width: auto; max-width: 90%; height: 20%; left: 2%; top: 5%; overflow: hidden; display: flex; flex-direction: column;`;
-
           const editorContainer = document.createElement("div");
           editorContainer.style = `display: flex; flex: 1; font-family: monospace;`;
-
-          // Assuming each digit is about the same width, and adding some padding
           const lineNumbers = document.createElement("textarea");
           lineNumbers.style = `flex: none; width: calc(4.5ch); height: 95%; font-size: 8px; resize: none; overflow: hidden; background: #eee; text-align: right; padding-right: 10px;`;
           lineNumbers.readOnly = true;
-
-          // Approximating width for 100 characters
           const textarea = document.createElement("textarea");
           textarea.style = `height: 95%; font-size: 8px; border: none; overflow-y: scroll; overflow-x: auto; white-space: nowrap; width: calc(80ch);`;
           textarea.value = nodes.map(node => JSON.stringify(node)).join("\n");
           textarea.onscroll = () => lineNumbers.scrollTop = textarea.scrollTop;
           textarea.oninput = updateLineNumbers;
-
           function updateLineNumbers() {
               const lineCount = textarea.value.split("\n").length;
               lineNumbers.value = Array.from({ length: lineCount }, (_, i) => i).join("\n");
           }
-
           updateLineNumbers();
-
           const buttonsContainer = document.createElement("div");
           buttonsContainer.style = `display: flex; justify-content: space-between; padding-top: 10px;`;
-
           const closeButton = document.createElement("button");
           closeButton.textContent = "Close";
           closeButton.onclick = () => document.body.removeChild(popup);
-
           const uploadButton = document.createElement("button");
           uploadButton.textContent = "Upload";
           uploadButton.onclick = () => {
@@ -300,19 +374,14 @@
               }
               document.body.removeChild(popup);
           };
-
           buttonsContainer.appendChild(closeButton);
           buttonsContainer.appendChild(uploadButton);
-
           editorContainer.appendChild(lineNumbers);
           editorContainer.appendChild(textarea);
-
           popup.appendChild(editorContainer);
           popup.appendChild(buttonsContainer);
           document.body.appendChild(popup);
       }
-
-
 
       function drawNode(node) {
         context.beginPath();
@@ -322,7 +391,6 @@
         const rectWidth = radiusX * 2 * scale * generationScale;
         const rectHeight = radiusY * 2 * scale * generationScale;
         context.font = `${lineHeight*scale* generationScale}px Arial`;
-                
         const lines = nodelabel.split("\n");
         var maxLabelWidth = 50*scale*generationScale;
         var pad = 20*scale*generationScale;
@@ -331,7 +399,6 @@
           if (lineWidth > maxLabelWidth) {maxLabelWidth = lineWidth;}}
         maxLabelWidth += pad;
         const y2 = ((node.y+pany) - (lineHeight*generationScale * (lines.length+1)) / 2)*scale;
-
         function drawRoundedRect(x, y, width, height) {
           context.beginPath();context.moveTo(x + cornerRadius*scale*generationScale, y);
           context.lineTo(x + width - cornerRadius*scale*generationScale, y);
@@ -342,14 +409,11 @@
           context.quadraticCurveTo(x, y + height, x, y + height - cornerRadius*scale*generationScale);
           context.lineTo(x, y + cornerRadius*scale*generationScale); context.quadraticCurveTo(x, y, x + cornerRadius*scale*generationScale, y);
           context.closePath();}
-        
         drawRoundedRect((node.x+panx) * scale -  maxLabelWidth / 2, y2,  maxLabelWidth, (lines.length+1)*lineHeight*scale*generationScale);//draw the node outline
         context.fillStyle = colors[generation % colors.length];context.fill();context.stroke();
-        
         context.textAlign = "center";context.fillStyle = "black";//write the node text
         const y = ((node.y+pany) - (lineHeight * (lines.length-1.5)) / 2)*scale;
         lines.forEach((line, i) => {context.fillText(line, (node.x+panx)*scale, y + i * lineHeight*scale);});
-        
         if (nodes.indexOf(node) === selectedNodeIndex && drag==0){//place the cursor        
           const cursorPos = hiddenInput.selectionStart;
           const labelBeforeCursor = nodes[selectedNodeIndex].label.slice(0, cursorPos);           
@@ -364,7 +428,6 @@
           context.beginPath();context.moveTo(cursorX, cursorY);
           context.lineTo(cursorX, cursorY + lineHeight*scale* generationScale);
           context.stroke();}
-          
         if (nodes.indexOf(node) === selectedNodeIndex){
           context.lineWidth = 1;
           context.setLineDash([8*scale, 11*scale]);
@@ -393,10 +456,15 @@
       function countIterations(index, iteration) {
         if (index === 0) return iteration;
         const parentIndex = nodes.findIndex((node) => node.children.includes(index));
+        if (parentIndex === -1) return iteration;
         return countIterations(parentIndex, iteration + 1);}
           
       function addNode(x, y) {
         const node = { x: Math.round(x), y: Math.round(y), label: "", children: [] };
+        if (selectedNodeIndex === -1) { 
+          currentFileCreationDate = null;
+          lastFileName = "";
+        }
         if (selectedNodeIndex !== -1) {nodes[selectedNodeIndex].children.push(nodes.length);}
         nodes.push(node); selectedNodeIndex = nodes.length - 1; // set selectedNodeIndex to new node
         hiddenInput.value = "";redraw();}
@@ -406,14 +474,20 @@
         if (selectedNodeIndex == -1) {optionsButton.style.display = "none";return;}
         nodes.forEach((node, index) => {
           node.children.forEach((childIndex) => {
-            const child = nodes[childIndex];
-            context.beginPath(); //draw the connector
-            context.moveTo((node.x+panx)*scale, (node.y+pany)*scale);
-            context.lineTo((child.x+panx)*scale, (child.y+pany)*scale);
-            context.stroke();});
-            drawNode(node);})}; //draw the node
+            if (nodes[childIndex]) {
+              const child = nodes[childIndex];
+              context.beginPath(); //draw the connector
+              context.moveTo((node.x+panx)*scale, (node.y+pany)*scale);
+              context.lineTo((child.x+panx)*scale, (child.y+pany)*scale);
+              context.stroke();
+            }
+          });
+          drawNode(node);
+        });
+      };
             
       function zoomextents() {
+        if (nodes.length === 0) return;
         const [minX, maxX] = calculateRange(nodes, 'x');
         const [minY, maxY] = calculateRange(nodes, 'y');
         const rangex=maxX-minX;
@@ -424,7 +498,6 @@
         pany= -minY +((canvas.height/scale -rangey)/2);
         zoomSlider.value = scale;
         redraw();
-        
         function calculateRange(arr, prop) {
           const values = arr.map((node) => node[prop]);
           const min = Math.min(...values);const max = Math.max(...values);
@@ -508,16 +581,26 @@
                   var oldIndex = nodesclipboard[i].children[j];
                   nodesclipboard[i].children[j] = subtreeindices.length -1 - subtreeindices.indexOf(oldIndex);}}
         if (event.target.textContent ===" Cut ") {//delete the subtree nodes and renumber the children
-          if (selectedNodeIndex == 0) {nodes.splice(0);selectedNodeIndex = -1;}
-          else{  const prentNodeIndex = nodes.findIndex((prent) => prent.children.includes(selectedNodeIndex));          
-                 const nodeChildIndex = nodes[prentNodeIndex].children.indexOf(selectedNodeIndex);
-                 nodes[prentNodeIndex].children.splice(nodeChildIndex, 1);
-                 selectedNodeIndex = prentNodeIndex;
-                 for (var i = 0; i < subtreeindices.length; i++) {
-                   nodes.splice(subtreeindices[i], 1);
-                   nodes.forEach((node) => {
-                     for (var j = 0; j < node.children.length; j++) {
-                       if (node.children[j] > subtreeindices[i]) {node.children[j]--;}}});}}}           
+          if (selectedNodeIndex == 0) {
+            nodes.splice(0);
+            selectedNodeIndex = -1;
+            currentFileCreationDate = null;
+            lastFileName = "";
+          } else {  
+            const prentNodeIndex = nodes.findIndex((prent) => prent.children.includes(selectedNodeIndex));          
+            if (prentNodeIndex > -1) {
+              const nodeChildIndex = nodes[prentNodeIndex].children.indexOf(selectedNodeIndex);
+              nodes[prentNodeIndex].children.splice(nodeChildIndex, 1);
+            }
+            selectedNodeIndex = prentNodeIndex;
+            for (var i = 0; i < subtreeindices.length; i++) {
+              nodes.splice(subtreeindices[i], 1);
+              nodes.forEach((node) => {
+                for (var j = 0; j < node.children.length; j++) {
+                  if (node.children[j] > subtreeindices[i]) {node.children[j]--;}}});
+            }
+          }
+        }           
         redraw();menuupdate(0);}
           
       function findSubtree(index) {
