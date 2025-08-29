@@ -27,6 +27,27 @@
       const jsonButton = createElement('button', { id: 'json-button', style: `position: absolute; top: ${multiplier * 75}px; right: ${multiplier * 120}px; width: 10ch; font-size: ${multiplier * 17}px;` }, 'JSON');
 
       const METADATA_FILE_PATH = "/Minmap/_mindmap_index.json";
+      const appKey = 'uyt1co0totx5rx'; // Your Dropbox App Key
+      let redirectUri = 'https://minmap.vercel.app';
+      if (window.location.protocol === 'file:') {redirectUri = 'http://localhost/minmap0.4.html';}
+
+      // --- NEW: Modern Dropbox Authentication Handler ---
+      const authUrlParams = new URLSearchParams(window.location.search);
+      const authCode = authUrlParams.get('code');
+      if (authCode) {
+        const dbx = new Dropbox.Dropbox({ clientId: appKey });
+        dbx.auth.setCodeVerifier(window.localStorage.getItem("codeVerifier"));
+        dbx.auth.getAccessTokenFromCode(redirectUri, authCode)
+          .then(function(response) {
+            window.localStorage.removeItem("codeVerifier");
+            // Reload the page with the token in the hash, as the rest of the app expects.
+            window.location.href = redirectUri + '#access_token=' + response.result.access_token;
+          })
+          .catch(function(error) {
+            console.error(error);
+          });
+      }
+
       let lastFileName = ""; // Initialize as blank
       let currentFileCreationDate = null;
       var lineHeight = 17;
@@ -421,13 +442,14 @@
             request.send();});
 
       authenticateButton.addEventListener("click", function() {
-        const appKey = 'uyt17co0totx5rx';// Replace 'YOUR_APP_KEY' with your Dropbox app key
-        var redirectUri = 'https://minmap.vercel.app';
-        if (window.location.protocol === 'file:') {redirectUri = 'http://localhost/minmap0.4.html';}
         let dbx = new Dropbox.Dropbox({ clientId: appKey });
-        dbx.getAuthenticationUrl(redirectUri)
+        dbx.auth.getAuthenticationUrl(redirectUri, undefined, 'code', 'offline', undefined, 'none', true)
           .then(authUrl => {
+            window.localStorage.setItem("codeVerifier", dbx.auth.getCodeVerifier());
             window.location.href = authUrl;
+          })
+          .catch(error => {
+            console.error(error);
           });
       });
       
