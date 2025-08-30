@@ -26,7 +26,6 @@
       const InstructionsButton = createElement('button', { id: 'loadLocal-button', style: `position: absolute; top: ${multiplier * 75}px; right: ${multiplier * 17}px; width: 10ch; font-size: ${multiplier * 17}px;` }, 'Instructions');
       const jsonButton = createElement('button', { id: 'json-button', style: `position: absolute; top: ${multiplier * 75}px; right: ${multiplier * 120}px; width: 10ch; font-size: ${multiplier * 17}px;` }, 'JSON');
 
-      const METADATA_FILE_PATH = "/Minmap/_mindmap_index.json";
       let lastFileName = ""; // Initialize as blank
       let currentFileCreationDate = null;
       var lineHeight = 17;
@@ -187,11 +186,9 @@
           const fileReader = new FileReader();
           fileReader.onloadend = function() {
             const dropbox = new Dropbox.Dropbox({ accessToken: accessToken });
-            const filePath = '/Minmap/' + fileName + '.minmap';
-            dropbox.filesUpload({ path: filePath, contents: fileReader.result, mode: 'overwrite' })
+            dropbox.filesUpload({ path: '/Minmap/' + fileName + '.minmap', contents: fileReader.result, mode: 'overwrite' })
               .then(function(response) {
                 currentFileCreationDate = creationDate;
-                updateMetadataFile(dropbox, { name: fileName + '.minmap', creationDate: creationDate });
                 alert('File saved to Dropbox');
               })
               .catch(function(error) {alert('Error saving file to Dropbox: ' + error.message);});
@@ -200,33 +197,7 @@
         });
       });
 
-      function updateMetadataFile(dropbox, newFileInfo) {
-        dropbox.filesDownload({ path: METADATA_FILE_PATH })
-          .then(response => {
-            const reader = new FileReader();
-            reader.onload = function(event) {
-              let metadata = JSON.parse(event.target.result);
-              const existingIndex = metadata.findIndex(f => f.name === newFileInfo.name);
-              if (existingIndex > -1) {
-                metadata[existingIndex] = newFileInfo;
-              } else {
-                metadata.push(newFileInfo);
-              }
-              uploadMetadata(dropbox, metadata);
-            };
-            reader.readAsText(response.fileBlob);
-          })
-          .catch(error => {
-            uploadMetadata(dropbox, [newFileInfo]);
-          });
-      }
-
-      function uploadMetadata(dropbox, metadata) {
-        const metadataBlob = new Blob([JSON.stringify(metadata, null, 2)], { type: "application/json" });
-        return dropbox.filesUpload({ path: METADATA_FILE_PATH, contents: metadataBlob, mode: 'overwrite' });
-      }
-
-      function createPopup(action, files, onFileSelect, dropboxInstance) {
+      function createPopup(action, files, onFileSelect) {
         let selectedIndex = -1;
         const popup = document.createElement("div");
         popup.style = `position: absolute; z-index: 1; background-color: #f0f0f0; border: 1px solid #ddd; border-radius: 5px; padding: 10px; width: 400px; max-height: 50%; left: 50%; top: 50%; transform: translate(-50%, -50%); box-shadow: 0 4px 8px rgba(0,0,0,0.2); display: flex; flex-direction: column;`;
@@ -259,29 +230,10 @@
         });
         popup.appendChild(listContainer);
         const buttonContainer = document.createElement("div");
-        buttonContainer.style = "text-align: right;";
-        if (dropboxInstance) {
-          const refreshBtn = document.createElement("button");
-          refreshBtn.textContent = "Refresh";
-          refreshBtn.style = `font-size: 16px; padding: 8px 12px; float: left;`;
-          refreshBtn.onclick = () => {
-            refreshBtn.textContent = "Refreshing...";
-            refreshBtn.disabled = true;
-            buildAndUploadIndex(dropboxInstance).then(refreshedFiles => {
-              popup.remove();
-              refreshedFiles.sort((a, b) => new Date(b.creationDate) - new Date(a.creationDate));
-              createPopup(action, refreshedFiles, onFileSelect, dropboxInstance);
-            }).catch(err => {
-              alert("Failed to refresh index: " + err.message);
-              refreshBtn.textContent = "Refresh";
-              refreshBtn.disabled = false;
-            });
-          };
-          buttonContainer.appendChild(refreshBtn);
-        }
+        buttonContainer.style.textAlign = "right";
         const selectButton = document.createElement("button");
         selectButton.textContent = action;
-        selectButton.style = `margin-left: 10px; font-size: 16px; padding: 8px 12px;`;
+        selectButton.style = `margin-right: 10px; font-size: 16px; padding: 8px 12px;`;
         selectButton.addEventListener("click", () => {
           if (selectedIndex > -1) {
             onFileSelect(files[selectedIndex]);
@@ -292,7 +244,7 @@
         });
         const cancelButton = document.createElement("button");
         cancelButton.textContent = "Cancel";
-        cancelButton.style = `margin-left: 10px; font-size: 16px; padding: 8px 12px;`;
+        cancelButton.style = `font-size: 16px; padding: 8px 12px;`;
         cancelButton.addEventListener("click", () => document.body.removeChild(popup));
         buttonContainer.append(selectButton, cancelButton);
         popup.appendChild(buttonContainer);
@@ -329,80 +281,41 @@
 
       loadButton.addEventListener("click", () => {
         const dropbox = new Dropbox.Dropbox({ accessToken });
-        const showPopupWithFiles = (files) => {
-          files.sort((a, b) => new Date(b.creationDate) - new Date(a.creationDate));
-          createPopup("Open", files, (selectedFile) => {
-            name = selectedFile.name.slice(0, -7);
-            lastFileName = name;
-            dropbox.filesDownload({ path: `/Minmap/${selectedFile.name}` }).then(handleFileDownload);
-          }, dropbox);
-        };
-        dropbox.filesDownload({ path: METADATA_FILE_PATH })
-          .then(response => {
-            const reader = new FileReader();
-            reader.onload = function (event) { showPopupWithFiles(JSON.parse(event.target.result)); };
-            reader.readAsText(response.fileBlob);
-          })
-          .catch(error => {
-            alert("Index file not found. Building it now, this may take a moment.");
-            buildAndUploadIndex(dropbox)
-              .then(showPopupWithFiles)
-              .catch(err => alert("Could not build index: " + err.message));
-          });
-      });
-
-      function handleFileDownload(response) {
-        const blob = new Blob([response.fileBlob], { type: "application/json" });
-        const reader = new FileReader();
-        reader.onload = function (event) {
-          const data = JSON.parse(event.target.result);
-          if (data.hasOwnProperty('nodes')) {
-              nodes = data.nodes;
-              currentFileCreationDate = data.creationDate || null;
-          } else {
-              nodes = data;
-              currentFileCreationDate = null;
-          }
-          nodes.forEach(function(node) {
-            node.x = Math.round(node.x);
-            node.y = Math.round(node.y);
-          });
-          selectedNodeIndex = 0;
-          zoomextents();
-          redraw();
-        };
-        reader.readAsText(blob);
-      }
-
-      function buildAndUploadIndex(dropbox) {
-        return dropbox.filesListFolder({ path: "/Minmap" })
+        dropbox.filesListFolder({ path: "/Minmap" })
           .then(({ entries }) => {
-            const minmapFiles = entries.filter(file => file.name.endsWith(".minmap"));
-            const downloadPromises = minmapFiles.map(file => 
-              dropbox.filesDownload({ path: file.path_lower })
-                .then(response => new Promise((resolve, reject) => {
+            const minmapFiles = entries.filter((file) => file.name.endsWith(".minmap"));
+            minmapFiles.sort((a, b) => new Date(b.server_modified) - new Date(a.server_modified));
+            createPopup("Open", minmapFiles, (selectedFile) => {
+              name = selectedFile.name.slice(0, -7);
+              lastFileName = name;
+              dropbox.filesDownload({ path: selectedFile.path_lower })
+                .then(function (response) {
+                  const blob = new Blob([response.fileBlob], { type: "application/json" });
                   const reader = new FileReader();
-                  reader.onload = (event) => {
-                    try {
-                      const data = JSON.parse(event.target.result);
-                      resolve({
-                        name: file.name,
-                        creationDate: data.creationDate || file.server_modified
-                      });
-                    } catch(e) { // Handle malformed JSON
-                      resolve({ name: file.name, creationDate: file.server_modified });
+                  reader.onload = function (event) {
+                    const data = JSON.parse(event.target.result);
+                    if (data.hasOwnProperty('nodes')) {
+                        nodes = data.nodes;
+                        currentFileCreationDate = data.creationDate || null;
+                    } else {
+                        nodes = data;
+                        currentFileCreationDate = null;
                     }
+                    nodes.forEach(function(node) {
+                      node.x = Math.round(node.x);
+                      node.y = Math.round(node.y);
+                    });
+                    selectedNodeIndex = 0;
+                    zoomextents();
+                    redraw();
                   };
-                  reader.onerror = reject;
-                  reader.readAsText(response.fileBlob);
-                }))
-            );
-            return Promise.all(downloadPromises);
+                  reader.readAsText(blob);
+                })
+                .catch(({ message }) => alert(`Error loading file from Dropbox: ${message}`));
+            });
           })
-          .then(metadata => {
-            return uploadMetadata(dropbox, metadata).then(() => metadata);
-          });
-      }
+          .catch(({ message }) => alert(`Error listing files in Dropbox: ${message}`));
+      });
 
       InstructionsButton.addEventListener("click", function () {
             var request = new XMLHttpRequest();
